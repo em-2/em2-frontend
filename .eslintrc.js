@@ -10,7 +10,7 @@ module.exports = {
   plugins: [
     'react'
   ],
-  extends: 'standard',
+  extends: 'react-app',
   'rules': {
     // allow paren-less arrow functions
     'arrow-parens': 0,
