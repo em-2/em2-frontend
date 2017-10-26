@@ -1,7 +1,7 @@
 import db from './db'
 console.info('worker starting')
 
-onmessage = async function (message) { // eslint-disable-line no-undef
+onmessage = function (message) { // eslint-disable-line no-undef
   console.log('Message received from main script', message.data)
   postMessage(123)
 }
@@ -36,11 +36,41 @@ db.transaction('rw', db.convs, async () => {
     for (let d of test_data) {
       await db.convs.add(d)
     }
-    postMessage({'event': 'convs'})
+    postMessage({event: 'conv_list'})
   }
-
-  // const all = await db.convs.toArray()
-  // console.log('convs:', JSON.stringify(all, null, 2))
 }).catch(e => {
   console.error(e.stack || e)
 })
+
+const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+function rand (len) {
+  let text = ''
+  len = len || 10
+
+  for (let i = 0; i < len; i++){
+    text += ALPHANUM.charAt(Math.floor(Math.random() * ALPHANUM.length))
+  }
+
+  return text
+}
+
+onmessage = async function (message) { // eslint-disable-line no-undef
+  if (message.data.event !== 'create_conv') {
+    return
+  }
+  const conv_data = message.data.args
+  // TODO send to server
+
+  conv_data.key = 'dft-' + rand()
+  conv_data.snippet = conv_data.body.substr(0, 20)
+  conv_data.create = (new Date()).getTime()
+  conv_data.last_updated = conv_data.create
+  console.log(conv_data)
+
+  db.transaction('rw', db.convs, async () => {
+    await db.convs.add(conv_data)
+    postMessage({event: 'convs'})
+  }).catch(e => {
+    console.error(e.stack || e)
+  })
+}
