@@ -4,6 +4,7 @@ body {
   padding-top: 6.5rem;
   background-color: $background;
   padding-bottom: 3rem;
+  overflow-y: scroll;
 }
 
 .navbar {
@@ -34,6 +35,10 @@ main .content {
   border-radius: 4px;
   box-shadow: 0 2px 15px rgba(84,96,103,.25);
   padding: 1rem 0;
+
+  > div {
+    padding: 1rem;
+  }
 }
 
 table.convs {

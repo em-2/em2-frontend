@@ -39,8 +39,8 @@ db.transaction('rw', db.convs, async () => {
     postMessage({'event': 'convs'})
   }
 
-  const all = await db.convs.toArray()
-  console.log('convs:', JSON.stringify(all, null, 2))
+  // const all = await db.convs.toArray()
+  // console.log('convs:', JSON.stringify(all, null, 2))
 }).catch(e => {
   console.error(e.stack || e)
 })
