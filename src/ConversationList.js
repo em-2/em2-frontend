@@ -1,5 +1,4 @@
 import React, { Component } from 'react'
-import {Link} from 'react-router-dom'
 import db from './db'
 import {worker} from './shared'
 
@@ -39,10 +38,8 @@ class ConversationList extends Component {
       <table className="table convs">
         <tbody>
           {this.state.convs.map((conv, i) => (
-            <tr key={i}>
-              <td key="sub">
-                <Link to={`/${conv.key}`}>{conv.subject}</Link>
-                </td>
+            <tr key={i} onClick={() => this.props.history.push(`/${conv.key}`)}>
+              <td key="sub">{conv.subject}</td>
               <td key="sni">{conv.snippet}</td>
               <td key="upd" className="text-right">{conv.last_updated}</td>
             </tr>

@@ -6,42 +6,6 @@ onmessage = function (message) { // eslint-disable-line no-undef
   postMessage(123)
 }
 
-const test_data = [
-  {
-    key: '123',
-    created: 1508969130086,
-    last_updated: 1508969130086,
-    subject: 'testing',
-    snippet: 'this is a test'
-  },
-  {
-    key: '456',
-    created: 1508969435783,
-    last_updated: 1508969486606,
-    subject: 'more testing',
-    snippet: 'this is another test',
-  },
-  {
-    key: '789',
-    created: 1508969486606,
-    last_updated: 1508969486606,
-    subject: 'and again',
-    snippet: 'this is another test',
-  }
-]
-
-db.transaction('rw', db.convs, async () => {
-  if ((await db.convs.count()) === 0) {
-    console.log('adding initial data')
-    for (let d of test_data) {
-      await db.convs.add(d)
-    }
-    postMessage({event: 'conv_list'})
-  }
-}).catch(e => {
-  console.error(e.stack || e)
-})
-
 const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 function rand (len) {
   let text = ''
@@ -67,9 +31,19 @@ onmessage = async function (message) { // eslint-disable-line no-undef
   conv_data.last_updated = conv_data.create
   console.log(conv_data)
 
-  db.transaction('rw', db.convs, async () => {
+  const message_data = {
+    key: 'msg-' + rand(),
+    conv_key: conv_data.key,
+    position: 1,
+    deleted: false,
+    body: conv_data.body,
+  }
+
+  db.transaction('rw', db.convs, db.messages, async () => {
     await db.convs.add(conv_data)
-    postMessage({event: 'convs'})
+    await db.messages.add(message_data)
+    postMessage({event: 'conv_list'})
+    postMessage({event: 'conv', conv_key: conv_data.key})
   }).catch(e => {
     console.error(e.stack || e)
   })

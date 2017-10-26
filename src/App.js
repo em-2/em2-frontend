@@ -72,7 +72,7 @@ class App extends Component {
             <div className="content">
               <Switch>
                 <Route exact path="/" render={props => (
-                  <ConversationList updateGlobal={this.updateGlobal} />
+                  <ConversationList updateGlobal={this.updateGlobal} history={props.history} />
                 )}/>
 
                 <Route exact path="/create" render={props => (
