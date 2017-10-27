@@ -15,7 +15,7 @@ class ConversationCreate extends Component {
     this.save = this.save.bind(this)
   }
 
-  handle_change(event) {
+  handle_change (event) {
     this.setState({[event.target.name]: event.target.value})
     if (event.target.name === 'subject') {
       this.props.updateGlobal({
@@ -60,7 +60,7 @@ class ConversationCreate extends Component {
       'charlie@example.com',
     ]
     return (
-      <div className="row">
+      <div className="row box">
         <div className="col-8">
           <div className="form-group">
             <input type="text"
@@ -70,23 +70,22 @@ class ConversationCreate extends Component {
                    aria-describedby="subject-help"
                    placeholder="Subject"/>
             <small id="subject-help" className="form-text text-muted">
-              Conversation Subject.
+              Conversation subject
             </small>
           </div>
           <div className="form-group">
-            <textarea type="text"
-                      name="body"
+            <textarea name="body"
                       onChange={this.handle_change}
                       className="form-control"
                       aria-describedby="body-help"
                       placeholder="body"
                       rows="5"/>
             <small id="body-help" className="form-text text-muted">
-              The first message in this conversation.
+              The first message in this conversation
             </small>
           </div>
 
-          <div className="btn-group pull-right" role="group" aria-label="Save or Send">
+          <div className="btn-group float-right" role="group" aria-label="Save or Send">
             <button type="button"
                     className="btn btn-secondary"
                     onClick={() => this.save(false)}

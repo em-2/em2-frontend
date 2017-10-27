@@ -29,19 +29,21 @@ $stripe2: #00897B;
   background-position-x: 0;
 }
 
-
-main .content {
+.box {
   background-color: white;
   border-radius: 4px;
   box-shadow: 0 2px 15px rgba(84,96,103,.25);
-  padding: 1rem 0;
-
-  > div {
-    padding: 1rem;
-  }
+  padding: 1rem;
+  margin-bottom: 1rem;
 }
 
-table.convs {
+.box-conv-list {
+  @extend .box;
+  padding: 1rem 0;
+}
+
+table.conv-list {
+  margin-bottom: 0;
   td:first-child {
     padding-left: 1rem;
   }

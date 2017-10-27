@@ -23,8 +23,8 @@ onmessage = async function (message) { // eslint-disable-line no-undef
     return
   }
   const conv_data = message.data.args
-  // TODO send to server
 
+  // TODO send to server
   conv_data.key = 'dft-' + rand()
   conv_data.snippet = conv_data.body.substr(0, 20)
   conv_data.create = (new Date()).getTime()
@@ -35,7 +35,6 @@ onmessage = async function (message) { // eslint-disable-line no-undef
     key: 'msg-' + rand(),
     conv_key: conv_data.key,
     position: 1,
-    deleted: false,
     body: conv_data.body,
   }
 
@@ -44,6 +43,27 @@ onmessage = async function (message) { // eslint-disable-line no-undef
     await db.messages.add(message_data)
     postMessage({event: 'conv_list'})
     postMessage({event: 'conv', conv_key: conv_data.key})
+  }).catch(e => {
+    console.error(e.stack || e)
+  })
+}
+
+onmessage = async function (message) { // eslint-disable-line no-undef
+  if (message.data.event !== 'add_message') {
+    return
+  }
+
+  // TODO send to server
+  const message_data = {
+    key: 'msg-' + rand(),
+    conv_key: message.data.args.conv_key,
+    position: message.data.args.position,
+    body: message.data.args.body,
+  }
+
+  db.transaction('rw', db.messages, async () => {
+    await db.messages.add(message_data)
+    postMessage({event: 'conv', conv_key: message_data.conv_key})
   }).catch(e => {
     console.error(e.stack || e)
   })
