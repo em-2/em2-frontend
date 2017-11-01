@@ -10,11 +10,7 @@ class ConversationList extends Component {
 
   async componentDidMount () {
     this.update_list()
-    worker.onmessage = (e) => {
-      if (e.data.event === 'conv_list') {
-        this.update_list()
-      }
-    }
+    worker.add_listener('conv_list', e => this.update_list())
   }
 
   async update_list () {

@@ -15,18 +15,18 @@ class ConversationDetails extends Component {
 
   componentDidMount () {
     this.get_conv()
-    worker.onmessage = (e) => {
-      if (e.data.event === 'conv' && e.data.conv_key === this.state.conv.key) {
+    worker.add_listener('conv', e => {
+      if (e.data.conv_key === this.state.conv.key) {
         this.get_conv()
       }
-    }
+    })
   }
 
   async get_conv () {
     db.transaction('r', db.convs, db.messages, async () => {
       const conv = await db.convs.get(this.props.conv_key)
       const messages = await db.messages.where({conv_key: conv.key}).toArray()
-      console.log('messages', messages)
+      messages.sort((a, b) => a.position - b.position)
       this.setState({conv, messages})
       this.props.updateGlobal({
         page_title: conv.subject,
@@ -39,7 +39,7 @@ class ConversationDetails extends Component {
 
   send_new_message () {
     worker.postMessage({
-      event: 'add_message',
+      method: 'add_message',
       args: {
         body: this.state.new_message,
         conv_key: this.state.conv.key,

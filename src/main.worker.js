@@ -1,11 +1,6 @@
 import db from './db'
 console.info('worker starting')
 
-onmessage = function (message) { // eslint-disable-line no-undef
-  console.log('Message received from main script', message.data)
-  postMessage(123)
-}
-
 const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 function rand (len) {
   let text = ''
@@ -18,10 +13,26 @@ function rand (len) {
   return text
 }
 
-onmessage = async function (message) { // eslint-disable-line no-undef
-  if (message.data.event !== 'create_conv') {
-    return
+const METHODS = [
+  create_conv,
+  add_message,
+]
+
+const METHOD_LOOKUP = {}
+for (const f of METHODS) {
+  METHOD_LOOKUP[f.name] = f
+}
+
+onmessage = function (message) { // eslint-disable-line no-undef
+  const method = METHOD_LOOKUP[message.data.method]
+  if (method === undefined) {
+    console.error(`worker: method "${message.data.method}" not found`)
+  } else {
+    method(message)
   }
+}
+
+async function create_conv (message) {
   const conv_data = message.data.args
 
   // TODO send to server
@@ -41,18 +52,14 @@ onmessage = async function (message) { // eslint-disable-line no-undef
   db.transaction('rw', db.convs, db.messages, async () => {
     await db.convs.add(conv_data)
     await db.messages.add(message_data)
-    postMessage({event: 'conv_list'})
-    postMessage({event: 'conv', conv_key: conv_data.key})
+    postMessage({method: 'conv_list'})
+    postMessage({method: 'conv', conv_key: conv_data.key})
   }).catch(e => {
     console.error(e.stack || e)
   })
 }
 
-onmessage = async function (message) { // eslint-disable-line no-undef
-  if (message.data.event !== 'add_message') {
-    return
-  }
-
+async function add_message (message) {
   // TODO send to server
   const message_data = {
     key: 'msg-' + rand(),
@@ -63,7 +70,7 @@ onmessage = async function (message) { // eslint-disable-line no-undef
 
   db.transaction('rw', db.messages, async () => {
     await db.messages.add(message_data)
-    postMessage({event: 'conv', conv_key: message_data.conv_key})
+    postMessage({method: 'conv', conv_key: message_data.conv_key})
   }).catch(e => {
     console.error(e.stack || e)
   })

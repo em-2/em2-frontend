@@ -43,7 +43,7 @@ class ConversationCreate extends Component {
   }
 
   save (send) {
-    worker.postMessage({event: 'create_conv', args: this.state})
+    worker.postMessage({method: 'create_conv', args: this.state})
     this.props.history.push('/')
   }
 
