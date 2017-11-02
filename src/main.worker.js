@@ -1,6 +1,37 @@
 import db from './db'
 console.info('worker starting')
 
+const env = process.env  // eslint-disable-line no-undef
+// const login_url = env.REACT_APP_AUTH_URL + '/login/'
+const list_url = env.REACT_APP_MAIN_URL + '/list/'
+
+async function init() {
+  let r
+  try {
+    r = await fetch(list_url)
+  } catch (e) {
+    console.error('fetch error:', e)
+    return
+  }
+  console.log('request:', r)
+  if (r.status === 200) {
+
+    const data = await r.json()
+    console.log(data)
+    db.transaction('rw', db.convs, async () => {
+      //
+    })
+  } else if (r.status === 401) {
+    console.log('needs to login')
+    postMessage({method: 'update_global', state: {authenticated: false}})
+  } else {
+    console.error('request error:', r)
+  }
+}
+
+init()
+
+
 const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 function rand (len) {
   let text = ''
@@ -16,6 +47,7 @@ function rand (len) {
 const METHODS = [
   create_conv,
   add_message,
+  login,
 ]
 
 const METHOD_LOOKUP = {}
@@ -74,4 +106,8 @@ async function add_message (message) {
   }).catch(e => {
     console.error(e.stack || e)
   })
+}
+
+function login (message) {
+  postMessage({method: 'update_global', state: {authenticated: true}})
 }

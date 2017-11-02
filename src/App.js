@@ -1,20 +1,24 @@
 import React, { Component } from 'react'
-import {BrowserRouter as Router, Switch, Route, Link} from 'react-router-dom'
+import {Link, Redirect, Route, Switch, withRouter} from 'react-router-dom'
 import 'react-bootstrap-typeahead/css/Typeahead.css'
 import ConversationCreate from './ConversationCreate'
 import ConversationDetails from './ConversationDetails'
 import ConversationList from './ConversationList'
 import Settings from './Settings'
+import Login from './Login'
+import {worker} from './shared'
 
 
-class App extends Component {
+class _App extends Component {
   constructor(props) {
     super(props)
     this.updateGlobal = this.updateGlobal.bind(this)
     this.state = {
       page_title: null,
       nav_title: '',
+      authenticated: null,
     }
+    worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
   }
 
   updateGlobal (new_state) {
@@ -34,71 +38,92 @@ class App extends Component {
   }
 
   render () {
-    return (
-      <Router>
-        <div>
-          <div key="navbar" className="fixed-top">
-            <nav className="navbar navbar-expand-md navbar-light bg-light">
-              <div className="container">
-                <Link to="/" className="navbar-brand">em2</Link>
-                <div className="collapse navbar-collapse">
-                  <ul className="navbar-nav mr-auto">
-                    <li className="nav-item">
-                      <Link to="/create" className="nav-link">
-                        <i className="fa fa-bolt mr-1" aria-hidden="true"/>
-                        Create Conversation
-                      </Link>
-                    </li>
-                    <li className="nav-item">
-                      <Link to="/settings" className="nav-link">
-                        <i className="fa fa-cog mr-1" aria-hidden="true"/>
-                        Settings
-                      </Link>
-                    </li>
-                  </ul>
-                  <form className="form-inline mt-2 mt-md-0">
-                    <input className="form-control" type="text" placeholder="Search" aria-label="Search"/>
-                  </form>
-                </div>
-              </div>
-            </nav>
-            <div className="nav2">
-              <div className="container">
-                {this.state.nav_title}
-              </div>
+    if (this.state.authenticated === null) {
+      return <div className="text-center">authenticating...</div>
+    }
+    if (this.state.authenticated === false && this.props.location.pathname !== '/login') {
+      return <Redirect to={{
+        pathname: '/login',
+        state: { from: this.props.location }
+      }}/>
+    }
+    return <div>
+      <div key="navbar" className="fixed-top">
+        <nav className="navbar navbar-expand-md navbar-light bg-light">
+          <div className="container">
+            <Link to="/" className="navbar-brand">em2</Link>
+            <div className="collapse navbar-collapse">
+              <ul className="navbar-nav mr-auto">
+                <li className="nav-item">
+                  <Link to="/create" className="nav-link">
+                    <i className="fa fa-bolt mr-1" aria-hidden="true"/>
+                    Create Conversation
+                  </Link>
+                </li>
+                <li className="nav-item">
+                  <Link to="/settings" className="nav-link">
+                    <i className="fa fa-cog mr-1" aria-hidden="true"/>
+                    Settings
+                  </Link>
+                </li>
+              </ul>
+              <form className="form-inline mt-2 mt-md-0">
+                <input className="form-control" type="text" placeholder="Search" aria-label="Search"/>
+              </form>
             </div>
           </div>
-          <main key="main" className="container">
-            <div className="content">
-              <Switch>
-                <Route exact path="/" render={props => (
-                  <ConversationList updateGlobal={this.updateGlobal} history={props.history} />
-                )}/>
-
-                <Route exact path="/create" render={props => (
-                  <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
-                )}/>
-
-                <Route exact path="/settings" render={props => (
-                  <Settings updateGlobal={this.updateGlobal}/>
-                )}/>
-
-                <Route exact path="/:conv" render={props => (
-                  <ConversationDetails conv_key={props.match.params.conv} updateGlobal={this.updateGlobal} />
-                )}/>
-
-                <Route render={props => (
-                  <div>
-                    <h3>Page not found</h3>
-                  </div>
-                )}/>
-              </Switch>
-            </div>
-          </main>
+        </nav>
+        <div className="nav2">
+          <div className="container">
+            {this.state.nav_title}
+          </div>
         </div>
-      </Router>
-    )
+      </div>
+      <main key="main" className="container">
+        <div className="content">
+          {this.state.authenticated === null ? (
+            <p>
+              awaiting authentication ...
+            </p>
+          ) : (
+            <Switch>
+              <Route exact path="/" render={props => (
+                <ConversationList updateGlobal={this.updateGlobal} history={props.history}/>
+              )}/>
+
+              <Route exact path="/login" render={props => (
+                <Login updateGlobal={this.updateGlobal}
+                       authenticated={this.state.authenticated}
+                       history={props.history}/>
+              )}/>
+
+              <Route exact path="/create" render={props => (
+                <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
+              )}/>
+
+              <Route exact path="/create" render={props => (
+                <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
+              )}/>
+
+              <Route exact path="/settings" render={props => (
+                <Settings updateGlobal={this.updateGlobal}/>
+              )}/>
+
+              <Route exact path="/:conv" render={props => (
+                <ConversationDetails conv_key={props.match.params.conv} updateGlobal={this.updateGlobal}/>
+              )}/>
+
+              <Route render={props => (
+                <div>
+                  <h3>Page not found</h3>
+                </div>
+              )}/>
+            </Switch>
+          )}
+        </div>
+      </main>
+    </div>
   }
 }
 
-export default App
+export default withRouter(_App)
