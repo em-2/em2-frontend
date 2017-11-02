@@ -1,5 +1,9 @@
 import Worker from './main.worker.js'
 
+if (typeof(window) !== 'object') {
+  throw Error('worker.js should only be called from the window, not a worker')
+}
+
 const worker = Worker()
 
 const METHOD_LOOKUP = {}
@@ -20,4 +24,4 @@ worker.onmessage = function (message) {
   }
 }
 
-export {worker}
+export default worker

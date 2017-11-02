@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import db from './db'
-import {worker} from './shared'
+import worker from './worker'
 
 class ConversationList extends Component {
   constructor(props) {

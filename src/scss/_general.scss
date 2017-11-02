@@ -1,0 +1,9 @@
+// css classes which aren't linked to a particular part of the system but rather
+// can be reused anywhere
+button[type="submit"] {
+  cursor: pointer;
+}
+
+.height-2 {
+  height: 2rem;
+}

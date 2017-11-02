@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import React, {Component} from 'react'
 import {Link, Redirect, Route, Switch, withRouter} from 'react-router-dom'
 import 'react-bootstrap-typeahead/css/Typeahead.css'
 import ConversationCreate from './ConversationCreate'
@@ -6,7 +6,7 @@ import ConversationDetails from './ConversationDetails'
 import ConversationList from './ConversationList'
 import Settings from './Settings'
 import Login from './Login'
-import {worker} from './shared'
+import worker from './worker'
 
 
 class _App extends Component {
@@ -19,6 +19,10 @@ class _App extends Component {
       authenticated: null,
     }
     worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
+  }
+
+  componentDidMount () {
+    worker.postMessage({method: 'update_convs'})
   }
 
   updateGlobal (new_state) {

@@ -1,13 +1,13 @@
 import React, { Component } from 'react'
 import {Typeahead} from 'react-bootstrap-typeahead'
-import {worker} from './shared'
+import worker from './worker'
 
 class ConversationCreate extends Component {
   constructor(props) {
     super(props)
     this.state = {
       subject: '',
-      body: '',
+      message: '',
       participants: [],
     }
     this.handle_change = this.handle_change.bind(this)
@@ -42,17 +42,17 @@ class ConversationCreate extends Component {
     })
   }
 
-  save (send) {
-    worker.postMessage({method: 'create_conv', args: this.state})
+  save (publish) {
+    worker.postMessage({method: 'create_conv', conv_data: this.state, publish: publish})
     this.props.history.push('/')
   }
 
   render () {
     // TODO should this be the same as viewing/editing a conversation?
-    const unsavable = !(this.state.subject && this.state.body)
+    const unsavable = !(this.state.subject && this.state.message)
     let button_title = null
     if (unsavable) {
-      button_title = 'Both subject and body must be set to save or send'
+      button_title = 'Both subject and message must be set to save or send'
     }
     const options = [
       'anne@example.com',
@@ -74,13 +74,13 @@ class ConversationCreate extends Component {
             </small>
           </div>
           <div className="form-group">
-            <textarea name="body"
+            <textarea name="message"
                       onChange={this.handle_change}
                       className="form-control"
-                      aria-describedby="body-help"
-                      placeholder="body"
+                      aria-describedby="message-help"
+                      placeholder="message"
                       rows="5"/>
-            <small id="body-help" className="form-text text-muted">
+            <small id="message-help" className="form-text text-muted">
               The first message in this conversation
             </small>
           </div>
