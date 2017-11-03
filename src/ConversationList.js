@@ -1,6 +1,9 @@
 import React, { Component } from 'react'
 import db from './db'
 import worker from './worker'
+import format from 'date-fns/format'
+
+const DTF = 'HH:mm DD/MM/YYYY'
 
 class ConversationList extends Component {
   constructor(props) {
@@ -38,7 +41,7 @@ class ConversationList extends Component {
               <tr key={i} onClick={() => this.props.history.push(`/${conv.key}`)}>
                 <td key="sub">{conv.subject}</td>
                 <td key="sni">{conv.snippet}</td>
-                <td key="upd" className="text-right">{conv.last_updated}</td>
+                <td key="upd" className="text-right">{format(new Date(conv.last_updated), DTF)}</td>
               </tr>
             ))}
           </tbody>

@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import {Typeahead} from 'react-bootstrap-typeahead'
-import worker from './worker'
+import {urls, post_json} from './utils'
 
 class ConversationCreate extends Component {
   constructor(props) {
@@ -42,8 +42,12 @@ class ConversationCreate extends Component {
     })
   }
 
-  save (publish) {
-    worker.postMessage({method: 'create_conv', conv_data: this.state, publish: publish})
+  async save (publish) {
+    const r = await post_json(urls.main.create, this.state)
+    if (publish) {
+      const r2 = await post_json(urls.main.publish.replace('{conv}', r.json.key))
+      console.log(r2)
+    }
     this.props.history.push('/')
   }
 
