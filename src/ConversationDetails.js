@@ -38,12 +38,16 @@ class ConversationDetails extends Component {
   }
 
   send_new_message () {
+    let position = 1
+    if (this.state.messages.length > 0) {
+      position = this.state.messages[this.state.messages.length - 1].position + 1
+    }
     worker.postMessage({
       method: 'add_message',
       args: {
         body: this.state.new_message,
         conv_key: this.state.conv.key,
-        position: this.state.messages[this.state.messages.length - 1].position + 1
+        position: position,
       }
     })
     this.setState({new_message: ''})

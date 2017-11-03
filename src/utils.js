@@ -7,8 +7,9 @@ export const urls = {
     publish: env.REACT_APP_MAIN_URL + '/publish/{conv}/',
   },
   auth: {
-    login: env.REACT_APP_AUTH_URL + '/login/'
-  }
+    login: env.REACT_APP_AUTH_URL + '/login/',
+  },
+  ws: env.REACT_APP_WS_URL,
 }
 
 const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'

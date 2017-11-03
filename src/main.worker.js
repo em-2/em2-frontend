@@ -3,6 +3,18 @@ import {urls, rand, get_json} from './utils'
 
 console.info('worker starting')
 
+// TODO: ws versions
+
+async function init() {
+  // TODO check auth before connecting or use custom code for failed authentication
+  const socket = new WebSocket(urls.ws)
+  socket.onopen = e => console.log('websocket open')
+  socket.onclose = e => console.log('websocket closed', e)
+  socket.onmessage = e => console.log('websocket message', e)
+}
+
+init()
+
 const METHODS = [
   add_message,
   update_convs,
@@ -30,7 +42,6 @@ async function update_convs () {
       // let existing = await db.convs.where('key').anyOf(r.json.map(c => c.key)).toArray()
       // existing = existing.map(c => c.key)
       for (let conv of r.json) {
-        console.log(conv.ts)
         let dt = (new Date(conv.ts)).getTime()
         await db.convs.put({
           key: conv.key,
