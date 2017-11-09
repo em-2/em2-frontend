@@ -8,8 +8,13 @@ const worker = Worker()
 
 const METHOD_LOOKUP = {}
 
+// TODO (maybe) allow multiple registered listeners with the same name?
 worker.add_listener = (name, method) => {
   METHOD_LOOKUP[name] = method
+}
+
+worker.remove_listener = (name) => {
+  delete METHOD_LOOKUP[name]
 }
 
 worker.onmessage = function (message) {
@@ -18,7 +23,7 @@ worker.onmessage = function (message) {
   }
   const method = METHOD_LOOKUP[message.data.method]
   if (method === undefined) {
-    console.error(`window: method "${message.data.method}" not found`, message)
+    // ok: console.error(`window: method "${message.data.method}" not found`, message)
   } else {
     method(message)
   }

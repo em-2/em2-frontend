@@ -11,14 +11,19 @@ class ConversationList extends Component {
     this.state = {convs: []}
   }
 
-  async componentDidMount () {
+  componentDidMount () {
+    worker.postMessage({method: 'update_convs'})
     this.update_list()
     worker.add_listener('conv_list', e => this.update_list())
   }
 
+  componentWillUnmount () {
+    worker.remove_listener('conv_list')
+  }
+
   async update_list () {
     db.transaction('r', db.convs, async () => {
-      const convs = await db.convs.orderBy('last_updated').reverse().toArray()
+      const convs = await db.convs.orderBy('updated_ts').reverse().toArray()
       this.setState(
           {convs: convs}
       )
@@ -26,9 +31,15 @@ class ConversationList extends Component {
         page_title: null,
         nav_title: `${convs.length} Conversations`,
       })
-    }).catch(e => {
-      console.error(e.stack || e)
     })
+  }
+
+  format_snippet (snippet_str) {
+    const snippet = JSON.parse(snippet_str)
+    return <span>
+      {snippet.addr}: {snippet.body}<br/>
+      <small>{snippet_str}</small>
+    </span>
   }
 
   render () {
@@ -40,8 +51,8 @@ class ConversationList extends Component {
             {this.state.convs.map((conv, i) => (
               <tr key={i} onClick={() => this.props.history.push(`/${conv.key}`)}>
                 <td key="sub">{conv.subject}</td>
-                <td key="sni">{conv.snippet}</td>
-                <td key="upd" className="text-right">{format(new Date(conv.last_updated), DTF)}</td>
+                <td key="sni">{this.format_snippet(conv.snippet)}</td>
+                <td key="upd" className="text-right">{format(new Date(conv.updated_ts), DTF)}</td>
               </tr>
             ))}
           </tbody>

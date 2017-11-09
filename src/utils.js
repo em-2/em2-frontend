@@ -3,8 +3,10 @@ const env = process.env  // eslint-disable-line no-undef
 export const urls = {
   main: {
     list: env.REACT_APP_MAIN_URL + '/list/',
+    get: env.REACT_APP_MAIN_URL + '/c/{conv}/',
     create: env.REACT_APP_MAIN_URL + '/create/',
     publish: env.REACT_APP_MAIN_URL + '/publish/{conv}/',
+    act: env.REACT_APP_MAIN_URL + '/act/{conv}/{component}/{verb}/'
   },
   auth: {
     login: env.REACT_APP_AUTH_URL + '/login/',
@@ -12,10 +14,10 @@ export const urls = {
   ws: env.REACT_APP_WS_URL,
 }
 
-const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-export function rand (len) {
-  let text = ''
-  len = len || 10
+const ALPHANUM = 'abcdefghijklmnopqrstuvwxyz0123456789'
+export function rand (prefix) {
+  let text = prefix + '-'
+  const len = 20 - prefix.text
 
   for (let i = 0; i < len; i++){
     text += ALPHANUM.charAt(Math.floor(Math.random() * ALPHANUM.length))
@@ -42,7 +44,8 @@ export async function post_json (url, payload, allowed_responses) {
       json: await r.json(),
     }
   } else {
-    console.error('request error:', r)
+    const body = await r.text()
+    console.error('request error:', r, body)
     throw Error(`error posting to ${url}, status: ${r.status}`)
   }
 }

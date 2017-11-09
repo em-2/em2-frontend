@@ -2,6 +2,17 @@ import React, { Component } from 'react'
 import {Typeahead} from 'react-bootstrap-typeahead'
 import {urls, post_json} from './utils'
 
+async function create_conv (conv_data, publish) {
+  // TODO manage offline case, conv needs to be saved and pending event added
+  const r = await post_json(urls.main.create, conv_data)
+  let conv_key = r.json.key
+  if (publish) {
+    const r2 = await post_json(urls.main.publish.replace('{conv}', conv_key))
+    conv_key = r2.json.key
+  }
+  return conv_key
+}
+
 class ConversationCreate extends Component {
   constructor(props) {
     super(props)
@@ -43,12 +54,8 @@ class ConversationCreate extends Component {
   }
 
   async save (publish) {
-    const r = await post_json(urls.main.create, this.state)
-    if (publish) {
-      const r2 = await post_json(urls.main.publish.replace('{conv}', r.json.key))
-      console.log(r2)
-    }
-    this.props.history.push('/')
+    const conv_key = await create_conv(this.state, publish)
+    this.props.history.push('/' + conv_key)
   }
 
   render () {

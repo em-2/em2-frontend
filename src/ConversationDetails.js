@@ -13,11 +13,20 @@ class ConversationDetails extends Component {
     this.send_new_message = this.send_new_message.bind(this)
   }
 
-  componentDidMount () {
-    this.get_conv()
+  async componentDidMount () {
+    const found_conv = await this.get_conv()
+    if (found_conv) {
+      // TODO some way to make sure the conv is up to date, maybe ok if ws is connected
+    } else {
+      worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
+    }
+
     worker.add_listener('conv', e => {
       if (e.data.conv_key === this.state.conv.key) {
-        this.get_conv()
+        const found_conv = this.get_conv()
+        if (!found_conv) {
+          console.log('TODO set "not found" message')
+        }
       }
     })
   }
@@ -25,6 +34,9 @@ class ConversationDetails extends Component {
   async get_conv () {
     db.transaction('r', db.convs, db.messages, async () => {
       const conv = await db.convs.get(this.props.conv_key)
+      if (!conv) {
+        return false
+      }
       const messages = await db.messages.where({conv_key: conv.key}).toArray()
       messages.sort((a, b) => a.position - b.position)
       this.setState({conv, messages})
@@ -32,22 +44,17 @@ class ConversationDetails extends Component {
         page_title: conv.subject,
         nav_title: conv.subject,
       })
-    }).catch(e => {
-      console.error(e.stack || e)
-    })
+    }).catch(e => console.error(e.stack || e))
+    return true
   }
 
   send_new_message () {
-    let position = 1
-    if (this.state.messages.length > 0) {
-      position = this.state.messages[this.state.messages.length - 1].position + 1
-    }
     worker.postMessage({
       method: 'add_message',
       args: {
         body: this.state.new_message,
         conv_key: this.state.conv.key,
-        position: position,
+        msg_key: this.state.messages[this.state.messages.length - 1].key
       }
     })
     this.setState({new_message: ''})

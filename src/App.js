@@ -22,6 +22,7 @@ class _App extends Component {
   }
 
   componentDidMount () {
+    // TODO remove
     worker.postMessage({method: 'update_convs'})
   }
 
