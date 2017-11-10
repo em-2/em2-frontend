@@ -5,6 +5,7 @@ console.info('worker starting')
 
 let WS_OPEN = false
 let CONNECTED = false
+let DISCONNECTS = 0
 let WS_AUTH_URL
 
 function set_connected (c) {
@@ -24,16 +25,19 @@ function ws_connect() {
   socket.onopen = () => {
     set_connected(true)
     console.log('websocket open')
+    DISCONNECTS = 0
   }
 
   socket.onclose = async e => {
+    DISCONNECTS += DISCONNECTS >= 30 ? 0 : 1
     let timeout = null
     if (e.code === 1006) {
-      console.log('websocket close, connection failed')
-      set_connected(false)
-      timeout = 3000
+      console.log('websocket close, connection failed, disconnects:', DISCONNECTS)
+      timeout = 2000
+      // reconnnection failed, set offline
+      setTimeout(() => DISCONNECTS !== 0 && set_connected(false), 3000)
     } else if (e.code === 4401) {
-      console.log('websocket close, authentication required')
+      console.log('websocket close, authentication required, disconnects:', DISCONNECTS)
       if (WS_AUTH_URL) {
         const r = await fetch(WS_AUTH_URL, {credentials: 'include'})
         if (r.status === 200) {
@@ -43,7 +47,7 @@ function ws_connect() {
         }
       }
     } else if (e.code === 4403) {
-      console.log('websocket close, permission denied')
+      console.log('websocket close, permission denied, disconnects:', DISCONNECTS)
       postMessage({method: 'update_global', state: {authenticated: false}})
     } else {
       console.warn('unknown websocket close', e)
@@ -51,8 +55,7 @@ function ws_connect() {
       timeout = 5000
     }
     if (timeout) {
-      // TODO slow this down on repeat fails to avoid excessive requests.
-      setTimeout(ws_connect, timeout)
+      setTimeout(ws_connect, timeout * DISCONNECTS)
     }
   }
 
@@ -69,22 +72,22 @@ function ws_connect() {
   WS_OPEN = false
 }
 
-ws_connect()
+async function check_local () {
+  await db.transaction('r', db.convs, async () => {
+    const conv_count = await db.convs.count()
+    if (conv_count > 0) {
+      postMessage({method: 'update_global', state: {local_data: true}})
+    }
+  })
+}
+
+async function init () {
+  ws_connect()
+  await check_local()
+}
 
 async function apply_action (data) {
-  // data = {
-  //   action_key: 'act-r4725lqfp5jcwekc',
-  //   conv_key: '04d5f14b1bd5dc73038c8a390b89b694e548f65a698b9e60938048f6351059f5',
-  //   item: 'msg-lckqaas6uhu63y2c',
-  //   timestamp: '2017-11-09T23:34:39.148000',
-  //   actor: 'testing@imber.io',
-  //   body: 'and again',
-  //   component: 'message',
-  //   msg_format: 'markdown',
-  //   parent: 'act-dnu5jdmwg3lx6iwz',
-  //   relationship: 'sibling',
-  //   verb: 'add',
-  // }
+  // TODO proper support if the previous message is missing
   console.log('applying action:', data)
   data.key = data.action_key
   delete data.action_key
@@ -92,22 +95,42 @@ async function apply_action (data) {
   delete data.ts
   data[data.component] = data.item
   delete data.item
-  db.transaction('rw', db.actions, db.messages, async () => {
-    // add makes sure we don't repeat actions
-    await db.actions.add(data)
-    const parent_action = await db.actions.get(data.parent)
+  await db.transaction('rw', db.actions, db.messages, db.convs, async () => {
+    try {
+      await db.actions.add(data)
+    } catch (e) {
+      if (e.name === 'ConstraintError') {
+        // this happens when two clients are connected at the same time
+        console.log('action already exists')
+      } else {
+        console.error('error:', e)
+      }
+      postMessage({method: 'conv', conv_key: data.conv_key})
+      return
+    }
+    const parent_action = data.parent && await db.actions.get(data.parent)
     if (data.component === 'message') {
-      const parent_message = await db.messages.get(parent_action.message)
-      db.messages.put({
+      let parent_message
+      try {
+        parent_message = parent_action && await db.messages.get(parent_action.message)
+      } catch (e) {
+        // console.warn('error getting parent message:', e)
+      }
+      if (!parent_message) {
+        parent_message = (await db.messages.where({conv_key: data.conv_key}).reverse().sortBy('position'))[0]
+      }
+      await db.messages.put({
         key: data.message,
         conv_key: data.conv_key,
         body: data.body,
         deleted: false,
         format: data.msg_format,
-        after: parent_message.key,
-        position: parent_message.position + 1,
+        after: parent_message ? parent_message.key : null,
+        position: parent_message ? parent_message.position + 1 : 0,
         relationship: data.relationship,
       })
+    } else if (data.verb === 'publish') {
+      await db.convs.update(data.conv_key, {'published': true})
     } else {
       console.error('dont know how to deal with', data)
     }
@@ -116,11 +139,12 @@ async function apply_action (data) {
 }
 
 const METHODS = [
+  init,
   ws_connect,
   update_convs,
-  check_local,
   update_single_conv,
   add_message,
+  publish,
 ]
 
 const METHOD_LOOKUP = {}
@@ -153,33 +177,32 @@ async function update_convs (message) {
   const r = await get_json(urls.main.list, [200, 401])
   if (r.status === 200) {
     postMessage({method: 'update_global', state: {authenticated: true}})
-    db.transaction('rw', db.convs, async () => {
+    await db.transaction('rw', db.convs, async () => {
       for (let conv of r.json) {
         await db.convs.put(prepare_conv(conv))
       }
-    })
+    }).catch(e => {console.error(e.stack || e)})
     postMessage({method: 'conv_list'})
   } else if (r.status === 401) {
     postMessage({method: 'update_global', state: {authenticated: false}})
   }
 }
 
-async function check_local () {
-  db.transaction('r', db.convs, async () => {
-    const conv_count = await db.convs.count()
-    if (conv_count > 0) {
-      postMessage({method: 'update_global', state: {local_data: true}})
-    }
-  })
-}
-
 async function update_single_conv (message) {
-  const r = await get_json(urls.main.get.replace('{conv}', message.data.conv_key))
+  let r
+  try {
+    r = await get_json(urls.main.get.replace('{conv}', message.data.conv_key))
+  } catch (e) {
+    console.warn('error:', e)
+    postMessage({method: 'conv', conv_key: message.data.conv_key})
+    return
+  }
 
-  // console.log('update_single_conv', r.json)
+
+  // console.log('update_single_conv:', r.json)
   const conv_details = prepare_conv(r.json.details)
   let position = 0
-  db.transaction('rw', db.convs, db.messages, db.actions, async () => {
+  await db.transaction('rw', db.convs, db.messages, db.actions, async () => {
     await db.convs.put(conv_details)
     for (let msg of r.json.messages) {
       msg.conv_key = conv_details.key
@@ -187,6 +210,7 @@ async function update_single_conv (message) {
       msg.position = position
       await db.messages.put(msg)
     }
+    r.json.actions = r.json.actions || []
     for (let action of r.json.actions) {
       action.conv_key = conv_details.key
       action.ts = ts2int(action.ts)
@@ -202,18 +226,45 @@ async function add_message (message) {
   const url = url_sub(urls.main.act, {conv: message.data.args.conv_key, component: 'message', verb: 'add'})
 
   let newest_action
-  await db.transaction('r', db.actions, async () => {
-    const actions = await db.actions.where({message: message.data.args.msg_key}).toArray()
-
+  const set_newest_action = actions => {
     for (let action of actions) {
       if (!newest_action || action.ts > newest_action.ts) {
         newest_action = action
       }
     }
+  }
+  await db.transaction('r', db.actions, async () => {
+    const msg_actions = await db.actions.where({message: message.data.args.msg_key}).toArray()
+    set_newest_action(msg_actions)
+    if (!newest_action) {
+      // maybe need to filter on verb == publish here too
+      const conv_actions = await db.actions.where({conv_key: message.data.args.conv_key}).toArray()
+      set_newest_action(conv_actions)
+    }
   }).catch(e => console.error(e.stack || e))
 
-  post_json(url, {
-    body: message.data.args.body,
-    parent: newest_action.key
-  })
+  if (newest_action) {
+    post_json(url, {
+      body: message.data.args.body,
+      parent: newest_action.key
+    })
+  } else {
+    console.error('no newest_action')
+  }
+}
+
+async function publish (message) {
+  const r = await post_json(url_sub(urls.main.publish, {conv: message.data.args.conv_key}))
+  const new_conv_key = r.json.key
+  await db.transaction('rw', db.convs, db.messages, db.actions, async () => {
+    const conv = await db.convs.get(message.data.args.conv_key)
+    conv.key = new_conv_key
+    conv.old_key = message.data.args.conv_key
+    await db.convs.add(conv)
+    await db.convs.delete(conv.old_key)
+    await db.messages.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
+    await db.actions.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
+  }).catch(e => {console.error(e.stack || e)})
+  postMessage({method: 'conv', conv_key: message.data.args.conv_key})
+  postMessage({method: 'conv', conv_key: new_conv_key})
 }

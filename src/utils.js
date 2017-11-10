@@ -57,6 +57,16 @@ export async function post_json (url, payload, allowed_responses) {
   }
 }
 
+function RequestError(message, url, error, status){
+  this.message = message
+  this.url = url
+  this.error = error
+  this.status = status
+}
+
+RequestError.prototype = new Error()
+
+
 export async function get_json (url, allowed_responses) {
   let r
   try {
@@ -66,7 +76,7 @@ export async function get_json (url, allowed_responses) {
     })
   } catch (e) {
     console.error('fetch error:', e)
-    throw Error(`error getting to ${url}: ${e}`)
+    throw new RequestError(`error getting to ${url}: ${e}`, url, e)
   }
   // console.log('request', r)
   allowed_responses = allowed_responses || [200]
@@ -77,6 +87,6 @@ export async function get_json (url, allowed_responses) {
     }
   } else {
     console.error('request error:', r)
-    throw Error(`error getting ${url}, status: ${r.status}`)
+    throw new RequestError(`error getting ${url}, status: ${r.status}`, url, r, r.status)
   }
 }

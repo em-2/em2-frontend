@@ -35,8 +35,7 @@ class Login extends Component {
       const r = await post_json(urls.auth.login, payload, [200, 401, 429])
 
       if (r.status === 200) {
-        worker.postMessage({method: 'update_convs'})
-        worker.postMessage({method: 'ws_connect'})
+        worker.postMessage({method: 'init'})
         this.props.updateGlobal({authenticated: true})
       } else if (r.status === 401) {
         this.setState({

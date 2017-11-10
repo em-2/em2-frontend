@@ -24,8 +24,7 @@ class _App extends Component {
   }
 
   componentDidMount () {
-    worker.postMessage({method: 'update_convs'})  // TODO remove
-    worker.postMessage({method: 'check_local'})
+    worker.postMessage({method: 'init'})
   }
 
   updateGlobal (new_state) {
@@ -106,16 +105,14 @@ class _App extends Component {
               <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
             )}/>
 
-            <Route exact path="/create" render={props => (
-              <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
-            )}/>
-
             <Route exact path="/settings" render={props => (
               <Settings updateGlobal={this.updateGlobal}/>
             )}/>
 
             <Route exact path="/:conv" render={props => (
-              <ConversationDetails conv_key={props.match.params.conv} updateGlobal={this.updateGlobal}/>
+              <ConversationDetails conv_key={props.match.params.conv}
+                                   history={props.history}
+                                   updateGlobal={this.updateGlobal}/>
             )}/>
 
             <Route render={props => (
