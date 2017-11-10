@@ -36,6 +36,7 @@ class Login extends Component {
 
       if (r.status === 200) {
         worker.postMessage({method: 'update_convs'})
+        worker.postMessage({method: 'ws_connect'})
         this.props.updateGlobal({authenticated: true})
       } else if (r.status === 401) {
         this.setState({

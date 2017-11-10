@@ -17,6 +17,7 @@ class ConversationDetails extends Component {
     const found_conv = await this.get_conv()
     if (found_conv) {
       // TODO some way to make sure the conv is up to date, maybe ok if ws is connected
+      worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
     } else {
       worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
     }

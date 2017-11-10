@@ -14,6 +14,13 @@ export const urls = {
   ws: env.REACT_APP_WS_URL,
 }
 
+export function url_sub (url, subs) {
+  for (let [name, value] of Object.entries(subs)) {
+    url = url.replace('{' + name + '}', value)
+  }
+  return url
+}
+
 const ALPHANUM = 'abcdefghijklmnopqrstuvwxyz0123456789'
 export function rand (prefix) {
   let text = prefix + '-'

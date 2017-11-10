@@ -17,13 +17,15 @@ class _App extends Component {
       page_title: null,
       nav_title: '',
       authenticated: null,
+      connected: null,
+      local_data: false,
     }
     worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
   }
 
   componentDidMount () {
-    // TODO remove
-    worker.postMessage({method: 'update_convs'})
+    worker.postMessage({method: 'update_convs'})  // TODO remove
+    worker.postMessage({method: 'check_local'})
   }
 
   updateGlobal (new_state) {
@@ -43,10 +45,13 @@ class _App extends Component {
   }
 
   render () {
-    if (this.state.authenticated === null) {
-      return <div className="text-center">authenticating...</div>
-    }
-    if (this.state.authenticated === false && this.props.location.pathname !== '/login') {
+    if (this.state.authenticated === null && this.state.connected === null) {
+      return <div className="text-center">Authenticating...</div>
+    } else if (!this.state.connected && !this.state.local_data) {
+      return <div className="text-center">
+        No internet connection and no local data, so nothing much to show you. :-(
+      </div>
+    } else if (this.state.authenticated === false && this.props.location.pathname !== '/login') {
       return <Redirect to={{
         pathname: '/login',
         state: { from: this.props.location }
@@ -86,45 +91,39 @@ class _App extends Component {
       </div>
       <main key="main" className="container">
         <div className="content">
-          {this.state.authenticated === null ? (
-            <p>
-              awaiting authentication ...
-            </p>
-          ) : (
-            <Switch>
-              <Route exact path="/" render={props => (
-                <ConversationList updateGlobal={this.updateGlobal} history={props.history}/>
-              )}/>
+          <Switch>
+            <Route exact path="/" render={props => (
+              <ConversationList updateGlobal={this.updateGlobal} history={props.history}/>
+            )}/>
 
-              <Route exact path="/login" render={props => (
-                <Login updateGlobal={this.updateGlobal}
-                       authenticated={this.state.authenticated}
-                       history={props.history}/>
-              )}/>
+            <Route exact path="/login" render={props => (
+              <Login updateGlobal={this.updateGlobal}
+                     authenticated={this.state.authenticated}
+                     history={props.history}/>
+            )}/>
 
-              <Route exact path="/create" render={props => (
-                <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
-              )}/>
+            <Route exact path="/create" render={props => (
+              <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
+            )}/>
 
-              <Route exact path="/create" render={props => (
-                <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
-              )}/>
+            <Route exact path="/create" render={props => (
+              <ConversationCreate updateGlobal={this.updateGlobal} history={props.history}/>
+            )}/>
 
-              <Route exact path="/settings" render={props => (
-                <Settings updateGlobal={this.updateGlobal}/>
-              )}/>
+            <Route exact path="/settings" render={props => (
+              <Settings updateGlobal={this.updateGlobal}/>
+            )}/>
 
-              <Route exact path="/:conv" render={props => (
-                <ConversationDetails conv_key={props.match.params.conv} updateGlobal={this.updateGlobal}/>
-              )}/>
+            <Route exact path="/:conv" render={props => (
+              <ConversationDetails conv_key={props.match.params.conv} updateGlobal={this.updateGlobal}/>
+            )}/>
 
-              <Route render={props => (
-                <div>
-                  <h3>Page not found</h3>
-                </div>
-              )}/>
-            </Switch>
-          )}
+            <Route render={props => (
+              <div>
+                <h3>Page not found</h3>
+              </div>
+            )}/>
+          </Switch>
         </div>
       </main>
     </div>
