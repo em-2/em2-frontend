@@ -13,6 +13,7 @@ class ConversationList extends Component {
   }
 
   componentDidMount () {
+    this._ismounted = true
     this.update_list()
     worker.add_listener('conv_list', e => this.update_list())
     if (FIRST_LOAD) {
@@ -22,6 +23,7 @@ class ConversationList extends Component {
   }
 
   componentWillUnmount () {
+    this._ismounted = false
     worker.remove_listener('conv_list')
   }
 
@@ -29,13 +31,15 @@ class ConversationList extends Component {
     // TODO this seems to get called even once the component is unmounted
     db.transaction('r', db.convs, async () => {
       const convs = await db.convs.orderBy('updated_ts').reverse().toArray()
-      this.setState(
+      if (this._ismounted) {
+        this.setState(
           {convs: convs}
-      )
-      this.props.updateGlobal({
-        page_title: null,
-        nav_title: `${convs.length} Conversations`,
-      })
+        )
+        this.props.updateGlobal({
+          page_title: null,
+          nav_title: `${convs.length} Conversations`,
+        })
+      }
     })
   }
 

@@ -26,6 +26,8 @@ function ws_connect() {
     set_connected(true)
     console.log('websocket open')
     DISCONNECTS = 0
+    // if the connection hasn't been closed we're authenticated
+    setTimeout(() => DISCONNECTS === 0 && postMessage({method: 'update_global', state: {authenticated: true}}), 100)
   }
 
   socket.onclose = async e => {

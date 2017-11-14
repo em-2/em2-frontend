@@ -11,22 +11,36 @@ body {
   background-color: $background;
 }
 
-$stripe1: #009688;
-$stripe2: #00897B;
-
-.nav2 {
+@mixin stripes($colour1, $lighten) {
   background: repeating-linear-gradient(
     45deg,
-    $stripe1,
-    $stripe1 10px,
-    $stripe2 10px,
-    $stripe2 20px
+    $colour1,
+    $colour1 10px,
+    lighten($colour1, $lighten) 10px,
+    lighten($colour1, $lighten) 20px
   );
+}
+
+.nav2 {
   height: 33px;
   color: white;
-  padding-top: 0.3rem;
-  opacity: 0.92;
-  background-position-x: 0;
+  .back {
+    transition: all 0.5s ease;
+    @include stripes(#009688, 3%);
+    opacity: 0.92;
+    background-position-x: 0;
+    height: 100%;
+  }
+  &.anon .back{
+    filter: brightness(70%);
+  }
+  &.offline .back {
+    filter: grayscale(100%) brightness(120%);
+  }
+  .container {
+    position: relative;
+    top: -28px;
+  }
 }
 
 .box {

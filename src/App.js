@@ -19,8 +19,10 @@ class _App extends Component {
       authenticated: null,
       connected: null,
       local_data: false,
+      nav_class: '',
     }
     worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
+    this.render_nav_status = this.render_nav_status.bind(this)
   }
 
   componentDidMount () {
@@ -43,9 +45,21 @@ class _App extends Component {
     }
   }
 
+  render_nav_status () {
+    if (!this.state.connected) {
+      return <span>Offline</span>
+    } else if (!this.state.authenticated) {
+      return <span>Connected - not authenticated</span>
+    } else {
+      return <span>Connected</span>
+    }
+  }
+
   render () {
     if (this.state.authenticated === null && this.state.connected === null) {
-      return <div className="text-center">Authenticating...</div>
+      return <div className="text-center">
+        Authenticating...
+      </div>
     } else if (!this.state.connected && !this.state.local_data) {
       return <div className="text-center">
         No internet connection and no local data, so nothing much to show you. :-(
@@ -56,6 +70,16 @@ class _App extends Component {
         state: { from: this.props.location }
       }}/>
     }
+    const nav2_class = ['nav2']
+    let nav_status = ''
+    if (!this.state.connected) {
+      nav2_class.push('offline')
+      nav_status = 'Offline'
+    } else if (!this.state.authenticated) {
+      nav2_class.push('anon')
+      nav_status = 'not authenticated'
+    }
+
     return <div>
       <div key="navbar" className="fixed-top">
         <nav className="navbar navbar-expand-md navbar-light bg-light">
@@ -82,9 +106,13 @@ class _App extends Component {
             </div>
           </div>
         </nav>
-        <div className="nav2">
+        <div className={nav2_class.join(' ')}>
+          <div className="back"/>
           <div className="container">
             {this.state.nav_title}
+            <div className="pull-right">
+              {nav_status}
+            </div>
           </div>
         </div>
       </div>
