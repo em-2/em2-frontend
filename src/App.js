@@ -8,6 +8,9 @@ import Settings from './Settings'
 import Login from './Login'
 import worker from './worker'
 
+worker.add_listener('update_connected_at', e => {
+  window.connected_at = e.data.connected_at
+})
 
 class _App extends Component {
   constructor(props) {
@@ -24,6 +27,7 @@ class _App extends Component {
     }
     worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
     this.render_nav_status = this.render_nav_status.bind(this)
+    this.show_user = this.show_user.bind(this)
   }
 
   componentDidMount () {
@@ -56,6 +60,15 @@ class _App extends Component {
     }
   }
 
+  show_user () {
+    if (this.state.user) {
+      return <span className="ml-2">
+        <i className="fa fa-user-circle mr-1" aria-hidden="true"/>
+        {this.state.user.address}
+      </span>
+    }
+  }
+
   render () {
     if (this.state.authenticated === null && this.state.connected === null) {
       return <div className="text-center">
@@ -80,7 +93,6 @@ class _App extends Component {
       nav2_class.push('anon')
       nav_status = 'not authenticated'
     }
-    console.log('user', this.state.user)
     return <div>
       <div key="navbar" className="fixed-top">
         <nav className="navbar navbar-expand-md navbar-light bg-light">
@@ -113,6 +125,7 @@ class _App extends Component {
             {this.state.nav_title}
             <div className="pull-right">
               {nav_status}
+              {this.show_user()}
             </div>
           </div>
         </div>

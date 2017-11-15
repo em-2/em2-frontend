@@ -14,14 +14,13 @@ class ConversationDetails extends Component {
     this.send_new_message = this.send_new_message.bind(this)
     this.add_message = this.add_message.bind(this)
     this.publish_draft = this.publish_draft.bind(this)
+    this.db = null
   }
 
   async componentDidMount () {
     const found_conv = await this.get_conv()
-    if (found_conv) {
-      // TODO some way to make sure the conv is up to date, maybe ok if ws is connected
-      worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
-    } else {
+    if (!found_conv || found_conv.last_comms <= window.connected_at) {
+      // conversation might be out of date, updating it
       worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
     }
 
@@ -36,25 +35,25 @@ class ConversationDetails extends Component {
   }
 
   async get_conv () {
-    const db = await create_user_db()
-    return await db.transaction('r', db.convs, db.messages, async () => {
-      let conv = await db.convs.get(this.props.conv_key)
+    this.db = this.db || await create_user_db()
+    return await this.db.transaction('r', this.db.convs, this.db.messages, async () => {
+      let conv = await this.db.convs.get(this.props.conv_key)
       if (!conv) {
-        conv = await db.convs.get({old_key: this.props.conv_key})
+        conv = await this.db.convs.get({old_key: this.props.conv_key})
         if (conv) {
           this.props.history.push('/' + conv.key)
         } else {
-          return false
+          return null
         }
       }
-      const messages = await db.messages.where({conv_key: conv.key}).toArray()
+      const messages = await this.db.messages.where({conv_key: conv.key}).toArray()
       messages.sort((a, b) => a.position - b.position)
       this.setState({conv, messages})
       this.props.updateGlobal({
         page_title: conv.subject,
         nav_title: conv.subject + (conv.published ? '' : ' (draft)'),
       })
-      return true
+      return conv
     }).catch(e => console.error(e.stack || e))
   }
 

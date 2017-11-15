@@ -4,22 +4,19 @@ import worker from './worker'
 import format from 'date-fns/format'
 
 const DTF = 'HH:mm DD/MM/YYYY'
-let FIRST_LOAD = true
 
 class ConversationList extends Component {
   constructor(props) {
     super(props)
     this.state = {convs: []}
+    this.db = null
   }
 
   componentDidMount () {
     this._ismounted = true
     this.update_list()
     worker.add_listener('conv_list', e => this.update_list())
-    if (FIRST_LOAD) {
-      worker.postMessage({method: 'update_convs'})
-      FIRST_LOAD = false
-    }
+    worker.postMessage({method: 'update_convs'})
   }
 
   componentWillUnmount () {
@@ -29,9 +26,9 @@ class ConversationList extends Component {
 
   async update_list () {
     // TODO this seems to get called even once the component is unmounted
-    const db = await create_user_db()
-    db && db.transaction('r', db.convs, async () => {
-      const convs = await db.convs.orderBy('updated_ts').reverse().toArray()
+    this.db = this.db || await create_user_db()
+    this.db && this.db.transaction('r', this.db.convs, async () => {
+      const convs = await this.db.convs.orderBy('updated_ts').reverse().toArray()
       if (this._ismounted) {
         this.setState(
           {convs: convs}

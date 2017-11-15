@@ -20,6 +20,7 @@ export async function create_user_db () {
     return null
   }
   const db = new Dexie('em2:' + user.address)
+  db.user = user
   db.version(1).stores({
     convs: 'key,old_key,updated_ts,created_ts,published',
     messages: 'key,conv_key',

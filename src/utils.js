@@ -91,3 +91,6 @@ export async function get_json (url, allowed_responses) {
     throw new RequestError(`error getting ${url}, status: ${r.status}`, url, r, r.status)
   }
 }
+
+export const now = () => (new Date()).getTime()
+export const ts2int = ts => (new Date(ts)).getTime()
