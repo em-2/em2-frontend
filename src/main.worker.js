@@ -1,4 +1,4 @@
-import db from './db'
+import {create_user_db} from './db'
 import {urls, url_sub, get_json, post_json} from './utils'
 
 console.info('worker starting')
@@ -7,6 +7,7 @@ let WS_OPEN = false
 let CONNECTED = false
 let DISCONNECTS = 0
 let WS_AUTH_URL
+let db = null
 
 function set_connected (c) {
   postMessage({method: 'update_global', state: {connected: c}})
@@ -31,6 +32,7 @@ function ws_connect() {
   }
 
   socket.onclose = async e => {
+    WS_OPEN = false
     DISCONNECTS += DISCONNECTS >= 30 ? 0 : 1
     let timeout = null
     if (e.code === 1006) {
@@ -71,26 +73,21 @@ function ws_connect() {
       console.log('unknown websocket:', e)
     }
   }
-  WS_OPEN = false
-}
-
-async function check_local () {
-  await db.transaction('r', db.convs, async () => {
-    const conv_count = await db.convs.count()
-    if (conv_count > 0) {
-      postMessage({method: 'update_global', state: {local_data: true}})
-    }
-  })
 }
 
 async function init () {
+  db = await create_user_db()
+  postMessage({method: 'update_global', state: {local_data: Boolean(db)}})
   ws_connect()
-  await check_local()
 }
 
 async function apply_action (data) {
   // TODO proper support if the previous message is missing
   console.log('applying action:', data)
+  if (!db) {
+    console.warn('apply_action: no local db connection available')
+    return
+  }
   data.key = data.action_key
   delete data.action_key
   data.ts = ts2int(data.timestamp)
@@ -159,6 +156,7 @@ onmessage = function (message) { // eslint-disable-line no-undef
   if (method === undefined) {
     console.error(`worker: method "${message.data.method}" not found`)
   } else {
+    // console.log('onmessage:', message.data.method)
     method(message)
   }
 }

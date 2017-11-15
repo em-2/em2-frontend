@@ -20,6 +20,7 @@ class _App extends Component {
       connected: null,
       local_data: false,
       nav_class: '',
+      user: null,
     }
     worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
     this.render_nav_status = this.render_nav_status.bind(this)
@@ -79,7 +80,7 @@ class _App extends Component {
       nav2_class.push('anon')
       nav_status = 'not authenticated'
     }
-
+    console.log('user', this.state.user)
     return <div>
       <div key="navbar" className="fixed-top">
         <nav className="navbar navbar-expand-md navbar-light bg-light">

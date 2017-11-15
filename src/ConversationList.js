@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import db from './db'
+import {create_user_db} from './db'
 import worker from './worker'
 import format from 'date-fns/format'
 
@@ -29,7 +29,8 @@ class ConversationList extends Component {
 
   async update_list () {
     // TODO this seems to get called even once the component is unmounted
-    db.transaction('r', db.convs, async () => {
+    const db = await create_user_db()
+    db && db.transaction('r', db.convs, async () => {
       const convs = await db.convs.orderBy('updated_ts').reverse().toArray()
       if (this._ismounted) {
         this.setState(

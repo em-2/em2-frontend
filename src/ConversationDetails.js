@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import db from './db'
+import {create_user_db} from './db'
 import worker from './worker'
 
 class ConversationDetails extends Component {
@@ -36,6 +36,7 @@ class ConversationDetails extends Component {
   }
 
   async get_conv () {
+    const db = await create_user_db()
     return await db.transaction('r', db.convs, db.messages, async () => {
       let conv = await db.convs.get(this.props.conv_key)
       if (!conv) {

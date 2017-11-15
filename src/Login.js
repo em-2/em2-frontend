@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import {Redirect} from 'react-router-dom'
 import {urls, post_json, get_json} from './utils'
+import {update_meta_db} from './db'
 import worker from './worker'
 
 class Login extends Component {
@@ -35,6 +36,7 @@ class Login extends Component {
       const r = await post_json(urls.auth.login, payload, [200, 401, 429])
 
       if (r.status === 200) {
+        await update_meta_db()
         worker.postMessage({method: 'init'})
         this.props.updateGlobal({authenticated: true})
       } else if (r.status === 401) {

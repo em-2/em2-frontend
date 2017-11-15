@@ -10,6 +10,7 @@ export const urls = {
   },
   auth: {
     login: env.REACT_APP_AUTH_URL + '/login/',
+    account: env.REACT_APP_AUTH_URL + '/account/',
   },
   ws: env.REACT_APP_WS_URL,
 }
