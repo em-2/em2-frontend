@@ -23,17 +23,20 @@ function clear_connected_at () {
   postMessage({method: 'update_connected_at', connected_at: CONNECTED_AT})
 }
 
-let WS_OPEN = false
 let WS_AUTH_URL
 let DISCONNECTS = 0
-function ws_connect() {
-  if (WS_OPEN) {
-    console.log('ws already open')
-    return
+let socket = null
+function ws_connect(auto_close) {
+  if (socket && socket.readyState !== socket.CLOSED) {
+    if (auto_close) {
+      socket.close()
+    } else {
+      console.log('ws already open')
+      return
+    }
   }
-  WS_OPEN = true
   // TODO: ws versions
-  const socket = new WebSocket(urls.ws)
+  socket = new WebSocket(urls.ws)
 
   socket.onopen = () => {
     set_connected(true)
@@ -45,7 +48,6 @@ function ws_connect() {
   }
 
   socket.onclose = async e => {
-    WS_OPEN = false
     DISCONNECTS += DISCONNECTS >= 30 ? 0 : 1
     let timeout = null
     clear_connected_at()
@@ -201,7 +203,11 @@ async function update_convs (message) {
     postMessage({method: 'update_global', state: {authenticated: true}})
     await db.transaction('rw', db.convs, async () => {
       for (let conv of r.json) {
-        await db.convs.where({key: conv.key}).modify(prepare_conv(conv))
+        conv = prepare_conv(conv)
+        let m = await db.convs.where({key: conv.key}).modify(conv)
+        if (m === 0) {
+          await db.convs.put(conv)
+        }
       }
     }).catch(e => {console.error(e.stack || e)})
     postMessage({method: 'conv_list'})

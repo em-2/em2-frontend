@@ -13,12 +13,18 @@ module.exports = function override(config, env) {
 
   workerLoader.test = worker_ext
   workerLoader.use = [
-    'worker-loader',
-    { // Old babel-loader configuration goes here.
-      loader: workerLoader.loader,
-      options: workerLoader.options,
-    },
-  ];
+    'worker-loader',  // sting is equivalent of {loader: 'worker-loader'}
+  ]
+  // chrome works fine with non babel version we do this to get proper traces
+  // TODO might need to remove this if a js feature is used that doesn't work with chrome
+  if (env !== 'development') {
+    workerLoader.use.push(
+      {
+        loader: workerLoader.loader,
+        options: workerLoader.options,
+      }
+    )
+  }
   delete workerLoader.loader
   delete workerLoader.options
 

@@ -4,6 +4,7 @@ export const urls = {
   main: {
     list: env.REACT_APP_MAIN_URL + '/list/',
     get: env.REACT_APP_MAIN_URL + '/c/{conv}/',
+    actions: env.REACT_APP_MAIN_URL + '/c/{conv}/actions/',
     create: env.REACT_APP_MAIN_URL + '/create/',
     publish: env.REACT_APP_MAIN_URL + '/publish/{conv}/',
     act: env.REACT_APP_MAIN_URL + '/act/{conv}/{component}/{verb}/'

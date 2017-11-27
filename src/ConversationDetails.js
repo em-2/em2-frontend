@@ -19,7 +19,7 @@ class ConversationDetails extends Component {
 
   async componentDidMount () {
     const found_conv = await this.get_conv()
-    if (!found_conv || found_conv.last_comms <= window.connected_at) {
+    if (!found_conv || !found_conv.last_comms || found_conv.last_comms <= window.connected_at) {
       // conversation might be out of date, updating it
       worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
     }
