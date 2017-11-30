@@ -8,6 +8,7 @@ class ConversationDetails extends Component {
     this.state = {
       conv: {},
       messages: [],
+      participants: [],
       new_message: '',
       publish_allowed: true,
     }
@@ -18,13 +19,15 @@ class ConversationDetails extends Component {
   }
 
   async componentDidMount () {
+    this._ismounted = true
     const found_conv = await this.get_conv()
+    // console.log('found_conv', found_conv)
     if (!found_conv || !found_conv.last_comms || found_conv.last_comms <= window.connected_at) {
       // conversation might be out of date, updating it
       worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
     }
 
-    worker.add_listener('conv', async e => {
+    this.listener_id = worker.add_listener('conv', async e => {
       if (e.data.conv_key === this.props.conv_key) {
         const found_conv = await this.get_conv()
         if (!found_conv) {
@@ -34,9 +37,14 @@ class ConversationDetails extends Component {
     })
   }
 
+  componentWillUnmount () {
+    this._ismounted = false
+    worker.remove_listener(this.listener_id)
+  }
+
   async get_conv () {
     this.db = this.db || await create_user_db()
-    return await this.db.transaction('r', this.db.convs, this.db.messages, async () => {
+    return await this.db.transaction('r', this.db.convs, this.db.messages, this.db.participants, async () => {
       let conv = await this.db.convs.get(this.props.conv_key)
       if (!conv) {
         conv = await this.db.convs.get({old_key: this.props.conv_key})
@@ -48,11 +56,16 @@ class ConversationDetails extends Component {
       }
       const messages = await this.db.messages.where({conv_key: conv.key}).toArray()
       messages.sort((a, b) => a.position - b.position)
-      this.setState({conv, messages})
-      this.props.updateGlobal({
-        page_title: conv.subject,
-        nav_title: conv.subject + (conv.published ? '' : ' (draft)'),
-      })
+      const participants = await this.db.participants.where({conv_key: conv.key}).toArray()
+
+      if (this._ismounted) {
+        this.setState({conv, messages, participants})
+        this.props.updateGlobal({
+          page_title: conv.subject,
+          nav_title: conv.subject + (conv.published ? '' : ' (draft)'),
+        })
+      }
+
       return conv
     }).catch(e => console.error(e.stack || e))
   }
@@ -129,9 +142,9 @@ class ConversationDetails extends Component {
         <div className="col-3">
           <div className="box">
             <p>Participants</p>
-            {this.state.conv && this.state.conv.participants && this.state.conv.participants.map((p, i) => (
+            {this.state.conv && this.state.participants && this.state.participants.map((p, i) => (
               <div key={i}>
-                {p}
+                {p.address}
               </div>
             ))}
           </div>

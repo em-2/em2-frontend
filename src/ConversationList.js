@@ -15,20 +15,20 @@ class ConversationList extends Component {
   componentDidMount () {
     this._ismounted = true
     this.update_list()
-    worker.add_listener('conv_list', e => this.update_list())
+    this.listener_id = worker.add_listener('conv', () => this.update_list())
     worker.postMessage({method: 'update_convs'})
   }
 
   componentWillUnmount () {
     this._ismounted = false
-    worker.remove_listener('conv_list')
+    worker.remove_listener(this.listener_id)
   }
 
   async update_list () {
     // TODO this seems to get called even once the component is unmounted
     this.db = this.db || await create_user_db()
     this.db && this.db.transaction('r', this.db.convs, async () => {
-      const convs = await this.db.convs.orderBy('updated_ts').reverse().toArray()
+      const convs = await this.db.convs.orderBy('updated_ts').reverse().limit(50).toArray()
       if (this._ismounted) {
         this.setState(
           {convs: convs}

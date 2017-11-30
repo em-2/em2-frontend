@@ -1,4 +1,4 @@
-$background: #F1F5F9;
+@import 'variables';
 
 body {
   padding-top: 6.5rem;
@@ -103,5 +103,21 @@ table.conv-list {
   }
   .is-invalid ~ .invalid-feedback {
     visibility: visible;
+  }
+}
+
+.rbt {
+  .rbt-token {
+    display: block;
+    width: 100%;
+    margin: 4px 0 6px;
+  }
+  .invalid {
+    color: $danger;
+    background-color: lighten($danger, 35%);
+    &.rbt-token-active {
+      background-color: $danger;
+      color: white;
+    }
   }
 }

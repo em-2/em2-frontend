@@ -84,7 +84,7 @@ function ws_connect(auto_close) {
     if (data.auth_url) {
       WS_AUTH_URL = data.auth_url
     } else if (data.key) {
-      apply_action(data)
+      process_action(data)
     } else {
       console.log('unknown websocket:', e)
     }
@@ -101,6 +101,19 @@ async function init () {
   ws_connect()
 }
 
+async function process_action (data) {
+  console.log('processing action:', data)
+  const conv_key = data.conv_key
+  const new_conv = await db.transaction('r', db.convs, async () => !await db.convs.get(conv_key))
+  if (new_conv) {
+    await set_new_conv(conv_key)
+  } else {
+    await apply_action(data)
+    await update_conv_meta(conv_key, data)
+  }
+  postMessage({method: 'conv', conv_key: conv_key})
+}
+
 async function apply_action (data) {
   if (!db) {
     console.warn('apply_action: no local db connected')
@@ -112,7 +125,7 @@ async function apply_action (data) {
     data[data.component] = data.item
     delete data.item
   }
-  console.log('applying action:', data)
+  // console.log('applying action:', data)
 
   await db.transaction('rw', db.actions, db.messages, db.convs, async () => {
     try {
@@ -208,7 +221,7 @@ async function update_convs () {
         }
       }
     }).catch(e => {console.error(e.stack || e)})
-    postMessage({method: 'conv_list'})
+    postMessage({method: 'conv'})
     LAST_COMMS = now()
   } else if (r.status === 401) {
     postMessage({method: 'update_global', state: {authenticated: false}})
@@ -227,17 +240,19 @@ async function update_single_conv (message) {
   if (since_key){
     await apply_conv_actions(conv_key, since_key)
   } else {
-    await update_draft_conv(conv_key)
+    await set_new_conv(conv_key)
   }
 
-  postMessage({method: 'conv_list'})
   postMessage({method: 'conv', conv_key: conv_key})
 }
 
 async function apply_conv_actions (conv_key, since_key) {
   const r = await get_json(url_sub(urls.main.actions, {conv: conv_key}) + '?since=' + since_key)
-  console.log('update_single_conv:', r.json)
+  console.log('apply_conv_actions:', r.json)
   if (r.json.length === 0) {
+    await db.transaction('rw', db.convs, async () => {
+      await db.convs.update(conv_key, {last_comms: now()})
+    }).catch(e => {console.error(e.stack || e)})
     return
   }
 
@@ -246,31 +261,17 @@ async function apply_conv_actions (conv_key, since_key) {
     await apply_action(action)
   }
   const last_action = r.json[r.json.length - 1]
-
-  await db.transaction('rw', db.actions, db.messages, db.convs, async () => {
-    await db.convs.update(conv_key, {
-      update_ts: last_action.timestamp,
-      last_comms: now(),
-      snippet: JSON.stringify({
-        addr: last_action.actor,
-        body: last_action.body && last_action.body.substr(0, 20),
-        comp: last_action.component,
-        msgs: await db.messages.where({conv_key: conv_key}).count(),
-        prts: 999,  // TODO
-        verb: last_action.verb,
-      }),
-    })
-  }).catch(e => {console.error(e.stack || e)})
+  await update_conv_meta(conv_key, last_action)
 }
 
-async function update_draft_conv (conv_key) {
+async function set_new_conv (conv_key) {
   const r = await get_json(urls.main.get.replace('{conv}', conv_key))
-  // console.log('update_draft_conv:', r.json)
+  console.log('set_new_conv:', r.json)
 
   const conv_details = prepare_conv(r.json.details)
   conv_details.last_comms = now()
   let position = 0
-  await db.transaction('rw', db.convs, db.messages, db.actions, async () => {
+  await db.transaction('rw', db.convs, db.messages, db.actions, db.participants, async () => {
     await db.convs.put(conv_details)
     for (let msg of r.json.messages) {
       msg.conv_key = conv_key
@@ -278,13 +279,34 @@ async function update_draft_conv (conv_key) {
       msg.position = position
       await db.messages.put(msg)
     }
-    r.json.actions = r.json.actions || []
-    for (let action of r.json.actions) {
+    for (let action of (r.json.actions || [])) {
       action.conv_key = conv_key
-      action.ts = ts2int(action.ts)
+      action.timestamp = ts2int(action.timestamp)
       await db.actions.put(action)
     }
-    // TODO add participants and actions
+    for (let prt of (r.json.participants || [])) {
+      await db.participants.put({
+        address: prt.address,
+        conv_key: conv_key,
+      })
+    }
+  }).catch(e => {console.error(e.stack || e)})
+}
+
+async function update_conv_meta (conv_key, action) {
+  await db.transaction('rw', db.convs, db.messages, db.participants, async () => {
+    await db.convs.update(conv_key, {
+      updated_ts: action.timestamp,
+      last_comms: now(),
+      snippet: JSON.stringify({
+        addr: action.actor,
+        body: action.body && action.body.substr(0, 20),
+        comp: action.component,
+        msgs: await db.messages.where({conv_key: conv_key}).count(),
+        prts: await db.participants.where({conv_key: conv_key}).count(),
+        verb: action.verb,
+      }),
+    })
   }).catch(e => {console.error(e.stack || e)})
 }
 
@@ -322,13 +344,14 @@ async function add_message (message) {
 async function publish (message) {
   const r = await post_json(url_sub(urls.main.publish, {conv: message.data.args.conv_key}))
   const new_conv_key = r.json.key
-  await db.transaction('rw', db.convs, db.messages, db.actions, async () => {
+  await db.transaction('rw', db.convs, db.messages, db.participants, db.actions, async () => {
     const conv = await db.convs.get(message.data.args.conv_key)
     conv.key = new_conv_key
     conv.old_key = message.data.args.conv_key
     await db.convs.add(conv)
     await db.convs.delete(conv.old_key)
     await db.messages.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
+    await db.participants.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
     await db.actions.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
   }).catch(e => {console.error(e.stack || e)})
   postMessage({method: 'conv', conv_key: message.data.args.conv_key})

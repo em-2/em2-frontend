@@ -24,8 +24,8 @@ export async function create_user_db () {
   db.version(1).stores({
     convs: 'key,old_key,updated_ts,created_ts,published',
     messages: 'key,conv_key',
+    participants: 'address,conv_key',
     actions: 'key,conv_key,message,participant',
-    // TODO pending actions
   })
   return db
 }

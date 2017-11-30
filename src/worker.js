@@ -6,26 +6,27 @@ if (typeof(window) !== 'object') {
 
 const worker = Worker()
 
-const METHOD_LOOKUP = {}
+const LISTENERS = {}
 
 // TODO (maybe) allow multiple registered listeners with the same name?
 worker.add_listener = (name, method) => {
-  METHOD_LOOKUP[name] = method
+  const id = Math.floor(Math.random() * 1e6)
+  LISTENERS[id] = {name, method}
+  return id
 }
 
-worker.remove_listener = (name) => {
-  delete METHOD_LOOKUP[name]
+worker.remove_listener = (id) => {
+  delete LISTENERS[id]
 }
 
 worker.onmessage = function (message) {
   if (message.data.method === undefined) {
     return
   }
-  const method = METHOD_LOOKUP[message.data.method]
-  if (method === undefined) {
-    // ok: console.error(`window: method "${message.data.method}" not found`, message)
-  } else {
-    method(message)
+  for (let l of Object.values(LISTENERS)) {
+    if (l.name === message.data.method) {
+      l.method(message)
+    }
   }
 }
 

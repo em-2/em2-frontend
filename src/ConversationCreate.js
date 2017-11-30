@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
-import {Typeahead} from 'react-bootstrap-typeahead'
+import {Typeahead, Token} from 'react-bootstrap-typeahead'
+import isEmail from 'validator/lib/isEmail'
 import {urls, url_sub, post_json} from './utils'
 
 async function create_conv (conv_data, publish) {
@@ -13,6 +14,8 @@ async function create_conv (conv_data, publish) {
   return conv_key
 }
 
+const get_prt_address = p => p.customOption ? p.label : p
+
 class ConversationCreate extends Component {
   constructor(props) {
     super(props)
@@ -20,9 +23,12 @@ class ConversationCreate extends Component {
       subject: '',
       message: '',
       participants: [],
+      participants_clean: true,
+      participants_valid: true,
     }
     this.handle_change = this.handle_change.bind(this)
     this.handle_prt_change = this.handle_prt_change.bind(this)
+    this.render_addr_token = this.render_addr_token.bind(this)
     this.save = this.save.bind(this)
   }
 
@@ -36,13 +42,27 @@ class ConversationCreate extends Component {
   }
 
   handle_prt_change (v) {
+    const addresses = v.map(get_prt_address)
+    this.setState({participants_valid: addresses.every(v => isEmail(v))})
     this.handle_change(
-        {
-          target: {
-            name: 'participants',
-            value: v
-          }
+      {
+        target: {
+          name: 'participants',
+          value: addresses
         }
+      }
+    )
+  }
+
+  render_addr_token (option, onRemove, idx) {
+    const addr = get_prt_address(option)
+    return (
+      <Token
+        key={idx}
+        className={isEmail(addr) ? '' : 'invalid'}
+        onRemove={() => onRemove(addr)}>
+        {addr}
+      </Token>
     )
   }
 
@@ -60,14 +80,19 @@ class ConversationCreate extends Component {
 
   render () {
     // TODO should this be the same as viewing/editing a conversation?
-    const unsavable = !(this.state.subject && this.state.message)
+    const unsavable = !(
+      this.state.subject &&
+      this.state.message &&
+      this.state.participants_clean &&
+      this.state.participants_valid
+    )
     let button_title = null
     if (unsavable) {
-      button_title = 'Both subject and message must be set to save or send'
+      button_title = 'Both subject and message must be set and participants can\'t be pending to save or send'
     }
     const options = [
       'anne@example.com',
-      'ben@example',
+      'ben@example.com',
       'charlie@example.com',
     ]
     return (
@@ -118,6 +143,8 @@ class ConversationCreate extends Component {
             multiple={true}
             options={options}
             onChange={this.handle_prt_change}
+            onInputChange={v => this.setState({participants_clean: !v})}
+            renderToken={this.render_addr_token}
             allowNew
             newSelectionPrefix="New address:"
             placeholder="Add Participants..."
