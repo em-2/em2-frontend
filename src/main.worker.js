@@ -83,7 +83,7 @@ function ws_connect(auto_close) {
     const data = JSON.parse(e.data)
     if (data.auth_url) {
       WS_AUTH_URL = data.auth_url
-    } else if (data.action_key) {
+    } else if (data.key) {
       apply_action(data)
     } else {
       console.log('unknown websocket:', e)
@@ -102,19 +102,17 @@ async function init () {
 }
 
 async function apply_action (data) {
-  // TODO proper support if the previous message is missing
-  console.log('applying action:', data)
   if (!db) {
     console.warn('apply_action: no local db connected')
     return
   }
-  data.key = data.action_key
-  delete data.action_key
-  data.ts = ts2int(data.timestamp)
   LAST_COMMS = now()
-  delete data.ts
-  data[data.component] = data.item
-  delete data.item
+  data.timestamp = ts2int(data.timestamp)
+  if (data.item) {
+    data[data.component] = data.item
+    delete data.item
+  }
+  console.log('applying action:', data)
 
   await db.transaction('rw', db.actions, db.messages, db.convs, async () => {
     try {
@@ -151,7 +149,7 @@ async function apply_action (data) {
         relationship: data.relationship,
       })
     } else if (data.verb === 'publish') {
-      await db.convs.update(data.conv_key, {'published': true})
+      await db.convs.update(data.conv_key, {published: true})
     } else {
       console.error('dont know how to deal with', data)
     }
@@ -190,7 +188,7 @@ function prepare_conv (conv_details) {
   return conv_details
 }
 
-async function update_convs (message) {
+async function update_convs () {
   if (CONNECTED === false) {
     return
   }
@@ -204,7 +202,7 @@ async function update_convs (message) {
     await db.transaction('rw', db.convs, async () => {
       for (let conv of r.json) {
         conv = prepare_conv(conv)
-        let m = await db.convs.where({key: conv.key}).modify(conv)
+        let m = await db.convs.update(conv.key, conv)
         if (m === 0) {
           await db.convs.put(conv)
         }
@@ -218,37 +216,76 @@ async function update_convs (message) {
 }
 
 async function update_single_conv (message) {
-  let r
-  try {
-    r = await get_json(urls.main.get.replace('{conv}', message.data.conv_key))
-  } catch (e) {
-    console.warn('error:', e)
-    postMessage({method: 'conv', conv_key: message.data.conv_key})
+  const conv_key = message.data.conv_key
+  const since_key = await db.transaction('r', db.convs, db.actions, async () => {
+    if (await db.convs.get(conv_key)) {
+      const last_action = (await db.actions.where({conv_key: conv_key}).reverse().sortBy('timestamp'))[0]
+      return last_action && last_action.key
+    }
+  }).catch(e => {console.error(e.stack || e)})
+
+  if (since_key){
+    await apply_conv_actions(conv_key, since_key)
+  } else {
+    await update_draft_conv(conv_key)
+  }
+
+  postMessage({method: 'conv_list'})
+  postMessage({method: 'conv', conv_key: conv_key})
+}
+
+async function apply_conv_actions (conv_key, since_key) {
+  const r = await get_json(url_sub(urls.main.actions, {conv: conv_key}) + '?since=' + since_key)
+  console.log('update_single_conv:', r.json)
+  if (r.json.length === 0) {
     return
   }
 
-  // console.log('update_single_conv:', r.json)
+  for (let action of r.json) {
+    action.conv_key = conv_key
+    await apply_action(action)
+  }
+  const last_action = r.json[r.json.length - 1]
+
+  await db.transaction('rw', db.actions, db.messages, db.convs, async () => {
+    await db.convs.update(conv_key, {
+      update_ts: last_action.timestamp,
+      last_comms: now(),
+      snippet: JSON.stringify({
+        addr: last_action.actor,
+        body: last_action.body && last_action.body.substr(0, 20),
+        comp: last_action.component,
+        msgs: await db.messages.where({conv_key: conv_key}).count(),
+        prts: 999,  // TODO
+        verb: last_action.verb,
+      }),
+    })
+  }).catch(e => {console.error(e.stack || e)})
+}
+
+async function update_draft_conv (conv_key) {
+  const r = await get_json(urls.main.get.replace('{conv}', conv_key))
+  // console.log('update_draft_conv:', r.json)
+
   const conv_details = prepare_conv(r.json.details)
   conv_details.last_comms = now()
   let position = 0
   await db.transaction('rw', db.convs, db.messages, db.actions, async () => {
     await db.convs.put(conv_details)
     for (let msg of r.json.messages) {
-      msg.conv_key = conv_details.key
+      msg.conv_key = conv_key
       position += 1  // TODO switch to proper position array
       msg.position = position
       await db.messages.put(msg)
     }
     r.json.actions = r.json.actions || []
     for (let action of r.json.actions) {
-      action.conv_key = conv_details.key
+      action.conv_key = conv_key
       action.ts = ts2int(action.ts)
       await db.actions.put(action)
     }
     // TODO add participants and actions
   }).catch(e => {console.error(e.stack || e)})
-  postMessage({method: 'conv_list'})
-  postMessage({method: 'conv', conv_key: conv_details.key})
 }
 
 async function add_message (message) {
