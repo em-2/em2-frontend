@@ -111,6 +111,10 @@ table.conv-list {
     display: block;
     width: 100%;
     margin: 4px 0 6px;
+    cursor: default;
+  }
+  .rbt-close {
+    cursor: pointer;
   }
   .invalid {
     color: $danger;
@@ -120,4 +124,9 @@ table.conv-list {
       color: white;
     }
   }
+  // use to customise the input cursor
+  //.rbt-input-wrapper div:last-child {
+  //  width: 100%;
+  //  background-color: red;
+  //}
 }

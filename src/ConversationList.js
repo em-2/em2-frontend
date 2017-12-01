@@ -25,7 +25,6 @@ class ConversationList extends Component {
   }
 
   async update_list () {
-    // TODO this seems to get called even once the component is unmounted
     this.db = this.db || await create_user_db()
     this.db && this.db.transaction('r', this.db.convs, async () => {
       const convs = await this.db.convs.orderBy('updated_ts').reverse().limit(50).toArray()

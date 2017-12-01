@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
 import {create_user_db} from './db'
+import Participants from './Participants'
 import worker from './worker'
 
 class ConversationDetails extends Component {
@@ -14,6 +15,7 @@ class ConversationDetails extends Component {
     }
     this.send_new_message = this.send_new_message.bind(this)
     this.add_message = this.add_message.bind(this)
+    this.prts_change = this.prts_change.bind(this)
     this.publish_draft = this.publish_draft.bind(this)
     this.db = null
   }
@@ -56,7 +58,7 @@ class ConversationDetails extends Component {
       }
       const messages = await this.db.messages.where({conv_key: conv.key}).toArray()
       messages.sort((a, b) => a.position - b.position)
-      const participants = await this.db.participants.where({conv_key: conv.key}).toArray()
+      const participants = (await this.db.participants.where({conv_key: conv.key}).toArray()).map(p => p.address)
 
       if (this._ismounted) {
         this.setState({conv, messages, participants})
@@ -106,6 +108,27 @@ class ConversationDetails extends Component {
     </div>
   }
 
+  prts_change (v) {
+    if (!v.participants) {
+      return
+    }
+    const added_prts = v.participants.filter(x => !this.state.participants.includes(x))
+    if (added_prts.length) {
+      worker.postMessage({
+        method: 'change_participants',
+        args: {conv_key: this.state.conv.key, verb: 'add', participants: added_prts}
+      })
+    }
+
+    const removed_prts = this.state.participants.filter(x => !v.participants.includes(x))
+    if (removed_prts.length) {
+      worker.postMessage({
+        method: 'change_participants',
+        args: {conv_key: this.state.conv.key, verb: 'delete', participants: removed_prts}
+      })
+    }
+  }
+
   publish_draft () {
     const send = async () => {
       worker.postMessage({
@@ -141,12 +164,10 @@ class ConversationDetails extends Component {
         </div>
         <div className="col-3">
           <div className="box">
-            <p>Participants</p>
-            {this.state.conv && this.state.participants && this.state.participants.map((p, i) => (
-              <div key={i}>
-                {p.address}
-              </div>
-            ))}
+            <Participants selected={this.state.participants} onChange={this.prts_change}/>
+            <small id="subject-help" className="form-text text-muted">
+              Add and remove participants
+            </small>
           </div>
         </div>
       </div>

@@ -176,6 +176,7 @@ const METHODS = [
   update_convs,
   update_single_conv,
   add_message,
+  change_participants,
   publish,
 ]
 
@@ -338,6 +339,15 @@ async function add_message (message) {
     })
   } else {
     console.error('no newest_action')
+  }
+}
+
+async function change_participants (message) {
+  const args = message.data.args
+  const url = url_sub(urls.main.act, {conv: args.conv_key, component: 'participant', verb: args.verb})
+
+  for (let prt of args.participants) {
+    post_json(url, {item: prt})
   }
 }
 

@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
-import {Typeahead, Token} from 'react-bootstrap-typeahead'
-import isEmail from 'validator/lib/isEmail'
+import Participants from './Participants'
 import {urls, url_sub, post_json} from './utils'
 
 async function create_conv (conv_data, publish) {
@@ -14,8 +13,6 @@ async function create_conv (conv_data, publish) {
   return conv_key
 }
 
-const get_prt_address = p => p.customOption ? p.label : p
-
 class ConversationCreate extends Component {
   constructor (props) {
     super(props)
@@ -27,8 +24,6 @@ class ConversationCreate extends Component {
       participants_valid: true,
     }
     this.handle_change = this.handle_change.bind(this)
-    this.handle_prt_change = this.handle_prt_change.bind(this)
-    this.render_addr_token = this.render_addr_token.bind(this)
     this.save = this.save.bind(this)
   }
 
@@ -39,31 +34,6 @@ class ConversationCreate extends Component {
         nav_title: event.target.value || 'New Conversation',
       })
     }
-  }
-
-  handle_prt_change (v) {
-    const addresses = v.map(get_prt_address)
-    this.setState({participants_valid: addresses.every(v => isEmail(v))})
-    this.handle_change(
-      {
-        target: {
-          name: 'participants',
-          value: addresses
-        }
-      }
-    )
-  }
-
-  render_addr_token (option, onRemove, idx) {
-    const addr = get_prt_address(option)
-    return (
-      <Token
-        key={idx}
-        className={isEmail(addr) ? '' : 'invalid'}
-        onRemove={() => onRemove(addr)}>
-        {addr}
-      </Token>
-    )
   }
 
   componentDidMount () {
@@ -90,24 +60,16 @@ class ConversationCreate extends Component {
     if (unsavable) {
       button_title = 'Both subject and message must be set and participants can\'t be pending to save or send'
     }
-    const options = [
-      'anne@example.com',
-      'ben@example.com',
-      'charlie@example.com',
-    ]
     return (
       <div className="row box">
         <div className="col-9">
-          <div className="form-group">
+          <div className="form-group mb-2">
             <input type="text"
                    name="subject"
                    onChange={this.handle_change}
                    className="form-control"
                    aria-describedby="subject-help"
                    placeholder="Subject"/>
-            <small id="subject-help" className="form-text text-muted">
-              Conversation subject
-            </small>
           </div>
           <div className="form-group">
             <textarea name="message"
@@ -139,16 +101,7 @@ class ConversationCreate extends Component {
           </div>
         </div>
         <div className="col">
-          <Typeahead
-            multiple={true}
-            options={options}
-            onChange={this.handle_prt_change}
-            onInputChange={v => this.setState({participants_clean: !v})}
-            renderToken={this.render_addr_token}
-            allowNew
-            newSelectionPrefix="New address:"
-            placeholder="Add Participants..."
-          />
+          <Participants onChange={v => this.setState(v)}/>
         </div>
       </div>
     )
