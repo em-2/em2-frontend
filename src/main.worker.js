@@ -26,7 +26,7 @@ function clear_connected_at () {
 let WS_AUTH_URL
 let DISCONNECTS = 0
 let socket = null
-function ws_connect(auto_close) {
+function ws_connect (auto_close) {
   if (socket && socket.readyState !== socket.CLOSED) {
     if (auto_close) {
       socket.close()

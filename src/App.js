@@ -13,7 +13,7 @@ worker.add_listener('update_connected_at', e => {
 })
 
 class _App extends Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.updateGlobal = this.updateGlobal.bind(this)
     this.state = {

@@ -17,7 +17,7 @@ async function create_conv (conv_data, publish) {
 const get_prt_address = p => p.customOption ? p.label : p
 
 class ConversationCreate extends Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {
       subject: '',

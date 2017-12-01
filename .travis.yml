@@ -1,0 +1,18 @@
+language: node_js
+
+cache:
+  yarn: true
+  directories:
+    - node_modules
+
+install:
+- yarn
+
+script:
+- yarn lint
+#- yarn test
+- yarn build
+
+after_success:
+- ls -lha
+#- bash <(curl -s https://codecov.io/bash)

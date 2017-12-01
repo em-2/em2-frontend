@@ -6,7 +6,7 @@ import format from 'date-fns/format'
 const DTF = 'HH:mm DD/MM/YYYY'
 
 class ConversationList extends Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {convs: []}
     this.db = null

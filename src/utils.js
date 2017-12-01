@@ -1,5 +1,5 @@
 
-const env = process.env  // eslint-disable-line no-undef
+const env = process.env
 export const urls = {
   main: {
     list: env.REACT_APP_MAIN_URL + '/list/',
@@ -59,7 +59,7 @@ export async function post_json (url, payload, allowed_responses) {
   }
 }
 
-function RequestError(message, url, error, status){
+function RequestError (message, url, error, status){
   this.message = message
   this.url = url
   this.error = error

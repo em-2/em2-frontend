@@ -5,7 +5,7 @@ import {update_meta_db} from './db'
 import worker from './worker'
 
 class Login extends Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {
       email: '',

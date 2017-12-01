@@ -3,7 +3,7 @@ import {create_user_db} from './db'
 import worker from './worker'
 
 class ConversationDetails extends Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {
       conv: {},
