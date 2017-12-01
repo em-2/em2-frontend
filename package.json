@@ -32,6 +32,11 @@
     "lint": "eslint src",
     "lintfix": "eslint src --fix"
   },
+  "jest": {
+    "moduleNameMapper": {
+      "main.worker.js": "<rootDir>/test_mocks/worker.js"
+    }
+  },
   "engines": {
     "node": "8.x",
     "npm": "5.x",
