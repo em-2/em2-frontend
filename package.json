@@ -35,7 +35,9 @@
   "jest": {
     "moduleNameMapper": {
       "main.worker.js": "<rootDir>/test_mocks/worker.js"
-    }
+    },
+    "coverageReporters": ["text", "json"],
+    "coverageDirectory": "<rootDir>"
   },
   "engines": {
     "node": "8.x",
