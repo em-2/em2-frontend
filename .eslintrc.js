@@ -12,17 +12,18 @@ module.exports = {
   ],
   extends: 'react-app',
   rules: {
+    'semi': [2, 'never'],
     // allow paren-less arrow functions
     'arrow-parens': 0,
     // allow async-await
-    'generator-star-spacing': 1,
+    'generator-star-spacing': 2,
     // allow debugger during development
-    'no-debugger': 1,
+    'no-debugger': 2,
     'comma-dangle': 0,
     'camelcase': 0,
-    'no-alert': 1,
-    'space-before-function-paren': 1,
-    'react/jsx-uses-react': 'error',
-    'react/jsx-uses-vars': 'error',
+    'no-alert': 2,
+    'space-before-function-paren': 2,
+    'react/jsx-uses-react': 2,
+    'react/jsx-uses-vars': 2,
   }
 }

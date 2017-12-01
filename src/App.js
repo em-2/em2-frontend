@@ -1,3 +1,4 @@
+import 'raf/polyfill'
 import React, {Component} from 'react'
 import {Link, Redirect, Route, Switch, withRouter} from 'react-router-dom'
 import 'react-bootstrap-typeahead/css/Typeahead.css'
