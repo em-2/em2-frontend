@@ -22,7 +22,12 @@ class ConversationDetails extends Component {
 
   async componentDidMount () {
     this._ismounted = true
-    const found_conv = await this.get_conv()
+    let found_conv = null
+    try {
+      found_conv = await this.get_conv()
+    } catch (e) {
+      // occasionally happens on first load, perhaps when db isn't full created
+    }
     // console.log('found_conv', found_conv)
     if (!found_conv || !found_conv.last_comms || found_conv.last_comms <= window.connected_at) {
       // conversation might be out of date, updating it

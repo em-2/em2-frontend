@@ -140,6 +140,7 @@ async function apply_action (data) {
       postMessage({method: 'conv', conv_key: data.conv_key})
       return
     }
+
     const parent_action = data.parent && await db.actions.get(data.parent)
     if (data.component === 'message') {
       let parent_message
@@ -162,10 +163,12 @@ async function apply_action (data) {
         relationship: data.relationship,
       })
     } else if (data.component === 'participant') {
-      await db.participants.put({
-        conv_key: data.conv_key,
-        address: data.item,
-      })
+      const prt_key = {conv_key: data.conv_key, address: data.participant}
+      if (data.verb === 'add') {
+        await db.participants.put(prt_key)
+      } else if (data.verb === 'delete') {
+        await db.participants.delete([data.conv_key, data.participant])
+      }
     } else if (data.verb === 'publish') {
       await db.convs.update(data.conv_key, {published: true})
     } else {
