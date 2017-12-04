@@ -127,7 +127,7 @@ async function apply_action (data) {
   }
   // console.log('applying action:', data)
 
-  await db.transaction('rw', db.actions, db.messages, db.convs, async () => {
+  await db.transaction('rw', db.actions, db.messages, db.participants, db.convs, async () => {
     try {
       await db.actions.add(data)
     } catch (e) {
@@ -160,6 +160,11 @@ async function apply_action (data) {
         after: parent_message ? parent_message.key : null,
         position: parent_message ? parent_message.position + 1 : 0,
         relationship: data.relationship,
+      })
+    } else if (data.component === 'participant') {
+      await db.participants.put({
+        conv_key: data.conv_key,
+        address: data.item,
       })
     } else if (data.verb === 'publish') {
       await db.convs.update(data.conv_key, {published: true})
