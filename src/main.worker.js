@@ -106,9 +106,11 @@ async function process_action (data) {
   const conv_key = data.conv_key
   const new_conv = await db.transaction('r', db.convs, async () => !await db.convs.get(conv_key))
   if (new_conv) {
-    await set_new_conv(conv_key)
+    await apply_conv_actions(conv_key)
   } else {
-    await apply_action(data)
+    await db.transaction('rw', db.actions, db.messages, db.participants, db.convs, async () => {
+      await apply_action(data)
+    })
     await update_conv_meta(conv_key, data)
   }
   postMessage({method: 'conv', conv_key: conv_key})
@@ -127,55 +129,70 @@ async function apply_action (data) {
   }
   // console.log('applying action:', data)
 
-  await db.transaction('rw', db.actions, db.messages, db.participants, db.convs, async () => {
-    try {
-      await db.actions.add(data)
-    } catch (e) {
-      if (e.name === 'ConstraintError') {
-        // this happens when two clients are connected at the same time
-        console.log('action already exists')
-      } else {
-        console.error('error:', e)
-      }
-      postMessage({method: 'conv', conv_key: data.conv_key})
-      return
+  try {
+    await db.actions.add(data)
+  } catch (e) {
+    if (e.name === 'ConstraintError') {
+      // this happens when two clients are connected at the same time
+      console.log('action already exists')
+    } else {
+      console.error('error:', e)
     }
+    postMessage({method: 'conv', conv_key: data.conv_key})
+    return
+  }
 
-    const parent_action = data.parent && await db.actions.get(data.parent)
-    if (data.component === 'message') {
-      let parent_message
-      try {
-        parent_message = parent_action && await db.messages.get(parent_action.message)
-      } catch (e) {
-        // console.warn('error getting parent message:', e)
-      }
-      if (!parent_message) {
-        parent_message = (await db.messages.where({conv_key: data.conv_key}).reverse().sortBy('position'))[0]
-      }
-      await db.messages.put({
-        key: data.message,
-        conv_key: data.conv_key,
-        body: data.body,
-        deleted: false,
-        format: data.msg_format,
-        after: parent_message ? parent_message.key : null,
-        position: parent_message ? parent_message.position + 1 : 0,
-        relationship: data.relationship,
-      })
-    } else if (data.component === 'participant') {
-      const prt_key = {conv_key: data.conv_key, address: data.participant}
-      if (data.verb === 'add') {
-        await db.participants.put(prt_key)
-      } else if (data.verb === 'delete') {
-        await db.participants.delete([data.conv_key, data.participant])
-      }
-    } else if (data.verb === 'publish') {
+  const parent_action = data.parent && await db.actions.get(data.parent)
+  if (data.component === 'message') {
+    let parent_message
+    try {
+      parent_message = parent_action && await db.messages.get(parent_action.message)
+    } catch (e) {
+      // console.warn('error getting parent message:', e)
+    }
+    if (!parent_message) {
+      parent_message = (await db.messages.where({conv_key: data.conv_key}).reverse().sortBy('position'))[0]
+    }
+    await db.messages.put({
+      key: data.message,
+      conv_key: data.conv_key,
+      body: data.body,
+      deleted: false,
+      format: data.msg_format,
+      after: parent_message ? parent_message.key : null,
+      position: parent_message ? parent_message.position + 1 : 0,
+      relationship: data.relationship,
+    })
+  } else if (data.component === 'participant') {
+    const prt_data = {conv_key: data.conv_key, address: data.participant}
+    if (data.verb === 'add') {
+      await db.participants.put(prt_data)
+    } else if (data.verb === 'delete') {
+      await db.participants.where(prt_data).delete()
+    }
+  } else if (data.verb === 'publish') {
+    const conv_exists = await db.convs.get(data.conv_key)
+    if (conv_exists) {
       await db.convs.update(data.conv_key, {published: true})
     } else {
-      console.error('dont know how to deal with', data)
+      await create_conv_from_action(data, true)
     }
-  }).catch(e => {console.error(e.stack || e)})
+  } else if (data.verb === 'create') {
+    await create_conv_from_action(data, false)
+  } else {
+    console.error('dont know how to deal with', data)
+  }
   postMessage({method: 'conv', conv_key: data.conv_key})
+}
+
+async function create_conv_from_action (data, published) {
+  await db.convs.put({
+    key: data.conv_key,
+    subject: data.body,
+    updated_ts: data.timestamp,
+    created_ts: data.timestamp,
+    published: published,
+  })
 }
 
 const METHODS = [
@@ -198,8 +215,8 @@ onmessage = function (message) { // eslint-disable-line no-undef
   if (method === undefined) {
     console.error(`worker: method "${message.data.method}" not found`)
   } else {
-    // console.log('onmessage:', message.data.method)
-    method(message)
+    console.log('onmessage:', message.data.method, message.data.args)
+    method(message.data.args)
   }
 }
 
@@ -237,8 +254,8 @@ async function update_convs () {
   }
 }
 
-async function update_single_conv (message) {
-  const conv_key = message.data.conv_key
+async function update_single_conv (args) {
+  const conv_key = args.conv_key
   const since_key = await db.transaction('r', db.convs, db.actions, async () => {
     if (await db.convs.get(conv_key)) {
       const last_action = (await db.actions.where({conv_key: conv_key}).reverse().sortBy('timestamp'))[0]
@@ -246,60 +263,31 @@ async function update_single_conv (message) {
     }
   }).catch(e => {console.error(e.stack || e)})
 
-  if (since_key){
-    await apply_conv_actions(conv_key, since_key)
-  } else {
-    await set_new_conv(conv_key)
-  }
+  await apply_conv_actions(conv_key, since_key)
 
   postMessage({method: 'conv', conv_key: conv_key})
 }
 
 async function apply_conv_actions (conv_key, since_key) {
-  const r = await get_json(url_sub(urls.main.actions, {conv: conv_key}) + '?since=' + since_key)
+  let url = url_sub(urls.main.get, {conv: conv_key})
+  if (since_key) {
+    url += '?since=' + since_key
+  }
+  const r = await get_json(url)
   console.log('apply_conv_actions:', r.json)
-  if (r.json.length === 0) {
-    await db.transaction('rw', db.convs, async () => {
+  await db.transaction('rw', db.actions, db.messages, db.participants, db.convs, async () => {
+    if (r.json.length === 0) {
       await db.convs.update(conv_key, {last_comms: now()})
-    }).catch(e => {console.error(e.stack || e)})
-    return
-  }
-
-  for (let action of r.json) {
-    action.conv_key = conv_key
-    await apply_action(action)
-  }
-  const last_action = r.json[r.json.length - 1]
-  await update_conv_meta(conv_key, last_action)
-}
-
-async function set_new_conv (conv_key) {
-  const r = await get_json(urls.main.get.replace('{conv}', conv_key))
-  console.log('set_new_conv:', r.json)
-
-  const conv_details = prepare_conv(r.json.details)
-  conv_details.last_comms = now()
-  let position = 0
-  await db.transaction('rw', db.convs, db.messages, db.actions, db.participants, async () => {
-    await db.convs.put(conv_details)
-    for (let msg of r.json.messages) {
-      msg.conv_key = conv_key
-      position += 1  // TODO switch to proper position array
-      msg.position = position
-      await db.messages.put(msg)
+      return
     }
-    for (let action of (r.json.actions || [])) {
+
+    for (let action of r.json) {
       action.conv_key = conv_key
-      action.timestamp = ts2int(action.timestamp)
-      await db.actions.put(action)
+      await apply_action(action)
     }
-    for (let prt of (r.json.participants || [])) {
-      await db.participants.put({
-        address: prt.address,
-        conv_key: conv_key,
-      })
-    }
-  }).catch(e => {console.error(e.stack || e)})
+    const last_action = r.json[r.json.length - 1]
+    await update_conv_meta(conv_key, last_action)
+  })
 }
 
 async function update_conv_meta (conv_key, action) {
@@ -319,8 +307,8 @@ async function update_conv_meta (conv_key, action) {
   }).catch(e => {console.error(e.stack || e)})
 }
 
-async function add_message (message) {
-  const url = url_sub(urls.main.act, {conv: message.data.args.conv_key, component: 'message', verb: 'add'})
+async function add_message (args) {
+  const url = url_sub(urls.main.act, {conv: args.conv_key, component: 'message', verb: 'add'})
 
   let newest_action
   const set_newest_action = actions => {
@@ -331,18 +319,18 @@ async function add_message (message) {
     }
   }
   await db.transaction('r', db.actions, async () => {
-    const msg_actions = await db.actions.where({message: message.data.args.msg_key}).toArray()
+    const msg_actions = await db.actions.where({message: args.msg_key}).toArray()
     set_newest_action(msg_actions)
     if (!newest_action) {
       // maybe need to filter on verb == publish here too
-      const conv_actions = await db.actions.where({conv_key: message.data.args.conv_key}).toArray()
+      const conv_actions = await db.actions.where({conv_key: args.conv_key}).toArray()
       set_newest_action(conv_actions)
     }
   }).catch(e => console.error(e.stack || e))
 
   if (newest_action) {
     post_json(url, {
-      body: message.data.args.body,
+      body: args.body,
       parent: newest_action.key
     })
   } else {
@@ -350,8 +338,7 @@ async function add_message (message) {
   }
 }
 
-async function change_participants (message) {
-  const args = message.data.args
+async function change_participants (args) {
   const url = url_sub(urls.main.act, {conv: args.conv_key, component: 'participant', verb: args.verb})
 
   for (let prt of args.participants) {
@@ -359,19 +346,19 @@ async function change_participants (message) {
   }
 }
 
-async function publish (message) {
-  const r = await post_json(url_sub(urls.main.publish, {conv: message.data.args.conv_key}))
+async function publish (args) {
+  const r = await post_json(url_sub(urls.main.publish, {conv: args.conv_key}))
   const new_conv_key = r.json.key
   await db.transaction('rw', db.convs, db.messages, db.participants, db.actions, async () => {
-    const conv = await db.convs.get(message.data.args.conv_key)
+    const conv = await db.convs.get(args.conv_key)
     conv.key = new_conv_key
-    conv.old_key = message.data.args.conv_key
+    conv.old_key = args.conv_key
     await db.convs.add(conv)
     await db.convs.delete(conv.old_key)
     await db.messages.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
     await db.participants.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
     await db.actions.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
-  }).catch(e => {console.error(e.stack || e)})
-  postMessage({method: 'conv', conv_key: message.data.args.conv_key})
+  }).catch(e => {console.error(e, e.stack)})
+  postMessage({method: 'conv', conv_key: args.conv_key})
   postMessage({method: 'conv', conv_key: new_conv_key})
 }

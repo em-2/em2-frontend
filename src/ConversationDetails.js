@@ -31,7 +31,7 @@ class ConversationDetails extends Component {
     // console.log('found_conv', found_conv)
     if (!found_conv || !found_conv.last_comms || found_conv.last_comms <= window.connected_at) {
       // conversation might be out of date, updating it
-      worker.postMessage({method: 'update_single_conv', conv_key: this.props.conv_key})
+      worker.postMessage({method: 'update_single_conv', args: {conv_key: this.props.conv_key}})
     }
 
     this.listener_id = worker.add_listener('conv', async e => {
