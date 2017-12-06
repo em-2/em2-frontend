@@ -23,7 +23,7 @@ class Participants extends Component {
     this.db = this.db || await create_user_db()
     this.db && this.db.transaction('r', this.db.participants, async () => {
       const options = await this.db.participants.limit(50).toArray()
-      this.setState({options: options.map(v => v.address)})
+      this.setState({options: [...new Set(options.map(v => v.address))]})
     })
   }
 

@@ -215,7 +215,7 @@ onmessage = function (message) { // eslint-disable-line no-undef
   if (method === undefined) {
     console.error(`worker: method "${message.data.method}" not found`)
   } else {
-    console.log('onmessage:', message.data.method, message.data.args)
+    console.log('onmessage:', message.data.method, message.data.args || '')
     method(message.data.args)
   }
 }
@@ -357,7 +357,7 @@ async function publish (args) {
     await db.convs.delete(conv.old_key)
     await db.messages.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
     await db.participants.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
-    await db.actions.where({conv_key: conv.old_key}).modify({conv_key: new_conv_key})
+    await db.actions.where({conv_key: conv.old_key}).delete()
   }).catch(e => {console.error(e, e.stack)})
   postMessage({method: 'conv', conv_key: args.conv_key})
   postMessage({method: 'conv', conv_key: new_conv_key})

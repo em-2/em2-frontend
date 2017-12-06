@@ -1,17 +1,6 @@
 import React, { Component } from 'react'
 import Participants from './Participants'
-import {urls, url_sub, post_json} from './utils'
-
-async function create_conv (conv_data, publish) {
-  // TODO manage offline case, conv needs to be saved and pending event added
-  const r = await post_json(urls.main.create, conv_data)
-  let conv_key = r.json.key
-  if (publish) {
-    const r2 = await post_json(url_sub(urls.main.publish, {conv: conv_key}))
-    conv_key = r2.json.key
-  }
-  return conv_key
-}
+import {urls, post_json} from './utils'
 
 class ConversationCreate extends Component {
   constructor (props) {
@@ -44,7 +33,9 @@ class ConversationCreate extends Component {
   }
 
   async save (publish) {
-    const conv_key = await create_conv(this.state, publish)
+    const conv_data = Object.assign({publish: publish}, this.state)
+    const r = await post_json(urls.main.create, conv_data)
+    const conv_key = r.json.key
     this.props.history.push('/' + conv_key)
   }
 
