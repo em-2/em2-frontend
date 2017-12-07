@@ -2,8 +2,10 @@ import React, { Component } from 'react'
 import {create_user_db} from './db'
 import worker from './worker'
 import format from 'date-fns/format'
+import {now} from "./utils";
 
 const DTF = 'HH:mm DD/MM/YYYY'
+window.last_update_convs = null
 
 class ConversationList extends Component {
   constructor (props) {
@@ -16,7 +18,10 @@ class ConversationList extends Component {
     this._ismounted = true
     this.update_list()
     this.listener_id = worker.add_listener('conv', () => this.update_list())
-    worker.postMessage({method: 'update_convs'})
+    if (!window.last_update_convs || window.last_update_convs <= window.connected_at) {
+      window.last_update_convs = now()
+      worker.postMessage({method: 'update_convs'})
+    }
   }
 
   componentWillUnmount () {
