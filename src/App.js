@@ -8,8 +8,8 @@ import Settings from './Settings'
 import Login from './Login'
 import worker from './worker'
 
-worker.add_listener('update_connected_at', e => {
-  window.connected_at = e.data.connected_at
+worker.add_listener('update_connected_at', args => {
+  window.connected_at = args.connected_at
 })
 
 class _App extends Component {
@@ -25,7 +25,7 @@ class _App extends Component {
       nav_class: '',
       user: null,
     }
-    worker.add_listener('update_global', e => this.updateGlobal(e.data.state))
+    worker.add_listener('update_global', args => this.updateGlobal(args))
     this.render_nav_status = this.render_nav_status.bind(this)
     this.show_user = this.show_user.bind(this)
   }

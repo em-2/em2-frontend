@@ -34,8 +34,8 @@ class ConversationDetails extends Component {
       worker.postMessage({method: 'update_single_conv', args: {conv_key: this.props.conv_key}})
     }
 
-    this.listener_id = worker.add_listener('conv', async e => {
-      if (e.data.conv_key === this.props.conv_key) {
+    this.listener_id = worker.add_listener('conv', async args => {
+      if (args.conv_key === this.props.conv_key) {
         const found_conv = await this.get_conv()
         if (!found_conv) {
           console.log('TODO set "not found" message')

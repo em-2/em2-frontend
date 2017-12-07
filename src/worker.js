@@ -25,7 +25,8 @@ worker.onmessage = function (message) {
   }
   for (let l of Object.values(LISTENERS)) {
     if (l.name === message.data.method) {
-      l.method(message)
+      console.log('window running:', message.data.method, message.data.args || '')
+      l.method(message.data.args)
     }
   }
 }
