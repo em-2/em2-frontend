@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import Participants from './Participants'
-import {urls, post_json} from './utils'
+import {urls, post_json} from '../utils'
 
 class ConversationCreate extends Component {
   constructor (props) {

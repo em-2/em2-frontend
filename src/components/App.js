@@ -4,9 +4,10 @@ import 'react-bootstrap-typeahead/css/Typeahead.css'
 import ConversationCreate from './ConversationCreate'
 import ConversationDetails from './ConversationDetails'
 import ConversationList from './ConversationList'
+import StatusBar from './StatusBar'
 import Settings from './Settings'
 import Login from './Login'
-import worker from './worker'
+import worker from '../worker'
 
 worker.add_listener('update_connected_at', args => {
   window.connected_at = args.connected_at
@@ -84,15 +85,6 @@ class _App extends Component {
         state: { from: this.props.location }
       }}/>
     }
-    const nav2_class = ['nav2']
-    let nav_status = ''
-    if (!this.state.connected) {
-      nav2_class.push('offline')
-      nav_status = 'Offline'
-    } else if (!this.state.authenticated) {
-      nav2_class.push('anon')
-      nav_status = 'not authenticated'
-    }
     return <div>
       <div key="navbar" className="fixed-top">
         <nav className="navbar navbar-expand-md navbar-light bg-light">
@@ -119,16 +111,7 @@ class _App extends Component {
             </div>
           </div>
         </nav>
-        <div className={nav2_class.join(' ')}>
-          <div className="back"/>
-          <div className="container">
-            {this.state.nav_title}
-            <div className="pull-right">
-              {nav_status}
-              {this.show_user()}
-            </div>
-          </div>
-        </div>
+        <StatusBar app_state={this.state}/>
       </div>
       <main key="main" className="container">
         <div className="content">
@@ -158,8 +141,9 @@ class _App extends Component {
             )}/>
 
             <Route render={props => (
-              <div>
+              <div className="box">
                 <h3>Page not found</h3>
+                <p>The page "{props.location.pathname}" doesn't exist.</p>
               </div>
             )}/>
           </Switch>

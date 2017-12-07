@@ -1,8 +1,8 @@
 import React, { Component } from 'react'
-import {create_user_db} from './db'
-import worker from './worker'
 import format from 'date-fns/format'
-import {now} from "./utils";
+import {create_user_db} from '../db'
+import worker from '../worker'
+import {now} from '../utils'
 
 const DTF = 'HH:mm DD/MM/YYYY'
 window.last_update_convs = null

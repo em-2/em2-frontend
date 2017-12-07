@@ -1,13 +1,14 @@
 import React, { Component } from 'react'
-import {create_user_db} from './db'
+import {create_user_db} from '../db'
+import worker from '../worker'
 import Participants from './Participants'
-import worker from './worker'
 
 class ConversationDetails extends Component {
   constructor (props) {
     super(props)
     this.state = {
       conv: {},
+      conv_found: null,
       messages: [],
       participants: [],
       new_message: '',
@@ -36,10 +37,7 @@ class ConversationDetails extends Component {
 
     this.listener_id = worker.add_listener('conv', async args => {
       if (args.conv_key === this.props.conv_key) {
-        const found_conv = await this.get_conv()
-        if (!found_conv) {
-          console.log('TODO set "not found" message')
-        }
+        this.get_conv()
       }
     })
   }
@@ -58,6 +56,7 @@ class ConversationDetails extends Component {
         if (conv) {
           this.props.history.push('/' + conv.key)
         } else {
+          this._ismounted && this.setState({conv_found: false})
           return null
         }
       }
@@ -66,7 +65,7 @@ class ConversationDetails extends Component {
       const participants = (await this.db.participants.where({conv_key: conv.key}).toArray()).map(p => p.address)
 
       if (this._ismounted) {
-        this.setState({conv, messages, participants})
+        this.setState({conv, messages, participants, conv_found: Boolean(conv)})
         this.props.updateGlobal({
           page_title: conv.subject,
           nav_title: conv.subject + (conv.published ? '' : ' (draft)'),
@@ -155,6 +154,16 @@ class ConversationDetails extends Component {
   }
 
   render () {
+    if (this.state.conv_found === null) {
+      return <div/>
+    } else if (this.state.conv_found === false) {
+      return (
+        <div className="box">
+          <h3>conversation not found</h3>
+          <p>No record found of the conversation {this.props.conv_key.substr(0, 8)}.</p>
+        </div>
+      )
+    }
     return (
       <div className="row">
         <div className="col-9">

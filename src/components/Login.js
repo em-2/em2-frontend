@@ -1,8 +1,8 @@
 import React, { Component } from 'react'
 import {Redirect} from 'react-router-dom'
-import {urls, post_json, get_json} from './utils'
-import {update_meta_db} from './db'
-import worker from './worker'
+import {urls, post_json, get_json} from '../utils'
+import {update_meta_db} from '../db'
+import worker from '../worker'
 
 class Login extends Component {
   constructor (props) {

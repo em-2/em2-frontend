@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import {Typeahead, Token} from 'react-bootstrap-typeahead'
 import isEmail from 'validator/lib/isEmail'
-import {create_user_db} from "./db"
+import {create_user_db} from '../db'
 
 const get_prt_address = p => p.customOption ? p.label : p
 
