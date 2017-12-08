@@ -97,7 +97,7 @@ class _App extends Component {
         <div className="content">
           <Switch>
             <Route exact path="/" render={props => (
-              <ConversationList updateGlobal={this.updateGlobal} history={props.history}/>
+              <ConversationList updateGlobal={this.updateGlobal} history={props.history} user={this.state.user}/>
             )}/>
 
             <Route exact path="/login" render={props => (

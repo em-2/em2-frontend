@@ -1,4 +1,5 @@
 import React, { Component } from 'react'
+import {Link} from 'react-router-dom'
 import format from 'date-fns/format'
 import {create_user_db} from '../db'
 import worker from '../worker'
@@ -6,6 +7,33 @@ import {now} from '../utils'
 
 const DTF = 'HH:mm DD/MM/YYYY'
 window.last_update_convs = null
+
+
+const ListItem = props => {
+  const conv = props.conv
+  const snippet = JSON.parse(conv.snippet)
+  // TODO include read notifications, popovers, use first name not addr
+  return <Link to={`/${conv.key}`}>
+    <span className="subject">{conv.subject}</span>
+    <span className="body">
+      {snippet.addr === props.user.address ? '' : snippet.addr + ':'} {snippet.body}
+      {/*<small>{conv.snippet}</small>*/}
+    </span>
+
+
+    <span className="float-right">
+      <span className="icon">
+        <i className="fa fa-comments" aria-hidden="true"/>{snippet.msgs}
+      </span>
+      <span className="icon">
+        <i className="fa fa-users" aria-hidden="true"/>{snippet.prts}
+      </span>
+      <span>
+        {format(new Date(conv.updated_ts), DTF)}
+      </span>
+    </span>
+  </Link>
+}
 
 class ConversationList extends Component {
   constructor (props) {
@@ -32,7 +60,7 @@ class ConversationList extends Component {
   async update_list () {
     this.db = this.db || await create_user_db()
     this.db && this.db.transaction('r', this.db.convs, async () => {
-      const convs = await this.db.convs.orderBy('updated_ts').reverse().limit(50).toArray()
+      const convs = await this.db.convs.orderBy('updated_ts').reverse().limit(5).toArray()
       if (this._ismounted) {
         this.setState(
           {convs: convs}
@@ -45,29 +73,16 @@ class ConversationList extends Component {
     })
   }
 
-  format_snippet (snippet_str) {
-    const snippet = JSON.parse(snippet_str)
-    return <span>
-      {snippet.addr}: {snippet.body}<br/>
-      <small>{snippet_str}</small>
-    </span>
-  }
-
   render () {
     // TODO need a loading icon if convs. haven't yet been loaded
     return (
       <div className="box-conv-list">
-        <table className="table conv-list">
-          <tbody>
-            {this.state.convs.map((conv, i) => (
-              <tr key={i} onClick={() => this.props.history.push(`/${conv.key}`)}>
-                <td key="sub">{conv.subject}</td>
-                <td key="sni">{this.format_snippet(conv.snippet)}</td>
-                <td key="upd" className="text-right">{format(new Date(conv.updated_ts), DTF)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* labels */}
+        {this.state.convs.map((conv, i) => (
+          <div key={i}>
+            <ListItem conv={conv} user={this.props.user}/>
+          </div>
+        ))}
       </div>
     )
   }

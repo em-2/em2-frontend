@@ -9,6 +9,8 @@ def build(grab):
         grab.build()
     except GrablibError:
         pass
+    except Exception as e:
+        print(f'build error, {e.__class__.__name__}: {e}')
 
 
 def main():

@@ -171,6 +171,7 @@ async function apply_action (data) {
     await db.messages.put({
       key: data.message,
       conv_key: data.conv_key,
+      updated_ts: data.timestamp,
       body: data.body,
       deleted: false,
       format: data.msg_format,
@@ -307,13 +308,24 @@ async function apply_conv_actions (conv_key, since_key) {
   }).catch(e => {console.error(e.stack,  e)})
 }
 
+const SNIPPET_BODY_SIZE = 100
+
+async function snippet_body (conv_key, action) {
+  if (action.component === 'message' && action.body) {
+    return action.body.substr(0, SNIPPET_BODY_SIZE)
+  } else {
+    const msgs = await db.messages.where({conv_key: conv_key}).reverse().sortBy('update_ts')
+    return msgs[0].body.substr(0, SNIPPET_BODY_SIZE)
+  }
+}
+
 async function update_conv_meta (conv_key, action) {
   await db.convs.update(conv_key, {
     updated_ts: action.timestamp,
     last_comms: now(),
     snippet: JSON.stringify({
       addr: action.actor,
-      body: action.body && action.body.substr(0, 20),
+      body: await snippet_body(conv_key, action),
       comp: action.component,
       msgs: await db.messages.where({conv_key: conv_key}).count(),
       prts: await db.participants.where({conv_key: conv_key}).count(),
@@ -378,11 +390,8 @@ async function publish (args) {
 }
 
 async function nav_title_change (args) {
-  console.log('nav_title_change', args)
-
   const parent_key = await db.transaction('r', db.actions, async () => {
     const actions = await db.actions.where({conv_key: args.conv_key}).reverse().sortBy('timestamp')
-    console.log(actions)
     for (let action of actions) {
       if (action.component === 'subject' || action.verb === 'publish' || action.verb === 'create') {
         return action.key
