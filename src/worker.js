@@ -31,4 +31,8 @@ worker.onmessage = function (message) {
   }
 }
 
+worker.trigger = (method, args) => {
+  worker.postMessage({method: method, args: args})
+}
+
 export default worker

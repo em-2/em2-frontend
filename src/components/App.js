@@ -20,6 +20,7 @@ class _App extends Component {
     this.state = {
       page_title: null,
       nav_title: '',
+      nav_edit_arg: null,
       authenticated: null,
       connected: null,
       local_data: false,
@@ -27,8 +28,6 @@ class _App extends Component {
       user: null,
     }
     worker.add_listener('update_global', args => this.updateGlobal(args))
-    this.render_nav_status = this.render_nav_status.bind(this)
-    this.show_user = this.show_user.bind(this)
   }
 
   componentDidMount () {
@@ -48,25 +47,6 @@ class _App extends Component {
     }
     if (next_title !== document.title) {
       document.title = next_title
-    }
-  }
-
-  render_nav_status () {
-    if (!this.state.connected) {
-      return <span>Offline</span>
-    } else if (!this.state.authenticated) {
-      return <span>Connected - not authenticated</span>
-    } else {
-      return <span>Connected</span>
-    }
-  }
-
-  show_user () {
-    if (this.state.user) {
-      return <span className="ml-2">
-        <i className="fa fa-user-circle mr-1" aria-hidden="true"/>
-        {this.state.user.address}
-      </span>
     }
   }
 

@@ -45,6 +45,7 @@ class ConversationDetails extends Component {
   componentWillUnmount () {
     this._ismounted = false
     worker.remove_listener(this.listener_id)
+    this.props.updateGlobal({nav_edit_arg: null})
   }
 
   async get_conv () {
@@ -65,7 +66,8 @@ class ConversationDetails extends Component {
       const participants = (await this.db.participants.where({conv_key: conv.key}).toArray()).map(p => p.address)
 
       if (this._ismounted) {
-        this.setState({conv, messages, participants, conv_found: Boolean(conv)})
+        this.setState({conv, messages, participants, conv_found: true})
+        this.props.updateGlobal({nav_edit_arg: conv.key})
         this.props.updateGlobal({
           page_title: conv.subject,
           nav_title: conv.subject + (conv.published ? '' : ' (draft)'),

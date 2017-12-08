@@ -1,7 +1,7 @@
 @import 'variables';
 
 body {
-  padding-top: 6.5rem;
+  padding-top: 7rem;
   background-color: $background;
   padding-bottom: 3rem;
   overflow-y: scroll;
@@ -40,6 +40,20 @@ body {
   .container {
     position: relative;
     top: -28px;
+  }
+
+  &.editing {
+    height: 50px;
+    .container {
+        top: -45px;
+    }
+  }
+  .nav-title-edit {
+    max-width: 300px;
+    display: inline-block;
+  }
+  .fa-pencil {
+    cursor: pointer;
   }
 }
 

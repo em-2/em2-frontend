@@ -3,7 +3,7 @@ import {urls, url_sub, get_json, post_json, now, ts2int} from './utils'
 
 console.info('worker starting')
 
-function call_window (method, args) {
+function window_trigger (method, args) {
   postMessage({method: method, args: args})
 }
 
@@ -12,19 +12,19 @@ let db = null
 
 function set_connected (c) {
   CONNECTED = c
-  call_window('update_global', {connected: c})
+  window_trigger('update_global', {connected: c})
 }
 
 let CONNECTED_AT = null
 let LAST_COMMS = null
 function set_connected_at () {
   CONNECTED_AT = now()
-  call_window('update_connected_at', {connected_at: CONNECTED_AT})
+  window_trigger('update_connected_at', {connected_at: CONNECTED_AT})
 }
 
 function clear_connected_at () {
   CONNECTED_AT = null
-  call_window('update_connected_at', {connected_at: CONNECTED_AT})
+  window_trigger('update_connected_at', {connected_at: CONNECTED_AT})
 }
 
 let WS_AUTH_URL
@@ -48,7 +48,7 @@ function ws_connect (auto_close) {
     DISCONNECTS = 0
     set_connected_at()
     // if the connection hasn't been closed we're authenticated
-    setTimeout(() => DISCONNECTS === 0 && call_window('update_global', {authenticated: true}), 200)
+    setTimeout(() => DISCONNECTS === 0 && window_trigger('update_global', {authenticated: true}), 200)
   }
 
   socket.onclose = async e => {
@@ -72,7 +72,7 @@ function ws_connect (auto_close) {
       }
     } else if (e.code === 4403) {
       console.log('websocket close, permission denied, disconnects:', DISCONNECTS)
-      call_window('update_global', {authenticated: false})
+      window_trigger('update_global', {authenticated: false})
     } else {
       console.warn('unknown websocket close', e)
       set_connected(false)
@@ -98,9 +98,9 @@ function ws_connect (auto_close) {
 async function init () {
   db = await create_user_db()
   if (db) {
-    call_window('update_global', {local_data: true, user: db.user})
+    window_trigger('update_global', {local_data: true, user: db.user})
   } else {
-    call_window('update_global', {local_data: false})
+    window_trigger('update_global', {local_data: false})
   }
   ws_connect()
 }
@@ -124,7 +124,7 @@ async function process_action (data) {
   if (run_actions) {
     await apply_conv_actions(conv_key)
   }
-  call_window('conv', {conv_key: conv_key, from: 'process_action'})
+  window_trigger('conv', {conv_key: conv_key, from: 'process_action'})
 }
 
 async function apply_action (data) {
@@ -189,6 +189,8 @@ async function apply_action (data) {
     await db.convs.update(data.conv_key, {published: true})
   } else if (data.verb === 'create') {
     await create_conv_from_action(data, false)
+  } else if (data.component === 'subject') {
+    await db.convs.update(data.conv_key, {subject: data.body})
   } else {
     console.error('dont know how to deal with', data)
   }
@@ -212,6 +214,7 @@ const METHODS = [
   add_message,
   change_participants,
   publish,
+  nav_title_change,
 ]
 
 const METHOD_LOOKUP = {}
@@ -246,7 +249,7 @@ async function update_convs () {
   }
   const r = await get_json(urls.main.list, [200, 401])
   if (r.status === 200) {
-    call_window('update_global', {authenticated: true})
+    window_trigger('update_global', {authenticated: true})
     await db.transaction('rw', db.convs, async () => {
       for (let conv of r.json) {
         conv = prepare_conv(conv)
@@ -256,10 +259,10 @@ async function update_convs () {
         }
       }
     }).catch(e => {console.error(e.stack,  e)})
-    call_window('conv')
+    window_trigger('conv')
     LAST_COMMS = now()
   } else if (r.status === 401) {
-    call_window('update_global', {authenticated: false})
+    window_trigger('update_global', {authenticated: false})
   }
 }
 
@@ -273,7 +276,7 @@ async function update_single_conv (args) {
 
   await apply_conv_actions(conv_key, since_key)
 
-  call_window('conv', {conv_key: conv_key, from: 'update_single_conv'})
+  window_trigger('conv', {conv_key: conv_key, from: 'update_single_conv'})
 }
 
 async function apply_conv_actions (conv_key, since_key) {
@@ -341,7 +344,7 @@ async function add_message (args) {
   }).catch(e => console.error(e.stack,  e))
 
   if (newest_action) {
-    post_json(url, {
+    await post_json(url, {
       body: args.body,
       parent: newest_action.key
     })
@@ -371,5 +374,25 @@ async function publish (args) {
     await db.participants.where({conv_key: conv.old_key}).delete()
     await db.actions.where({conv_key: conv.old_key}).delete()
   }).catch(e => {console.error(e, e.stack)})
-  call_window('conv', {conv_key: args.conv_key, from: 'publish'})
+  window_trigger('conv', {conv_key: args.conv_key, from: 'publish'})
+}
+
+async function nav_title_change (args) {
+  console.log('nav_title_change', args)
+
+  const parent_key = await db.transaction('r', db.actions, async () => {
+    const actions = await db.actions.where({conv_key: args.conv_key}).reverse().sortBy('timestamp')
+    console.log(actions)
+    for (let action of actions) {
+      if (action.component === 'subject' || action.verb === 'publish' || action.verb === 'create') {
+        return action.key
+      }
+    }
+  }).catch(e => console.error(e.stack,  e))
+
+  const url = url_sub(urls.main.act, {conv: args.conv_key, component: 'subject', verb: 'modify'})
+  await post_json(url, {
+    body: args.title,
+    parent: parent_key
+  })
 }
