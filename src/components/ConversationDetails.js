@@ -6,6 +6,79 @@ import {format_ts} from '../utils'
 import Participants from './Participants'
 import {Detail, ConversationNotFound} from './Shared'
 
+
+// TODO style, font and img files need to be proxied through a service which caches them
+const IFRAME_CSP = [
+  "default-src 'none'",
+  "script-src 'sha256-hCCdjTZJ2yzHJhj2yvB/A5XBZYcyiiwgMXFDGo065l0='",
+  "style-src 'unsafe-inline'",
+  "font-src 'unsafe-inline'",
+  "img-src 'unsafe-inline' *",
+].join(';')
+
+function send_iframe_msg (id, msg) {
+  document.getElementById(id).contentWindow.postMessage(msg, '*')
+}
+
+
+const Message = props => {
+  // console.log(props.msg)
+  const actions = props.msg_actions[props.msg.key]
+  const first_action = actions[0]
+
+  const height = props.msg_heights[props.msg.key]
+  const styles = height ? {height: height + 'px'} : {}
+  // TODO does this do terrible things to performance? should the css be moved to a separate file?
+  // TODO move css to separate file
+  const src = `data:text/html;charset=utf-8,<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="Content-Security-Policy" content="${IFRAME_CSP}">
+    <style>
+      html, body {
+        min-height: 50px;
+      }
+      body {
+        font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen,
+        Ubuntu,Cantarell,Fira Sans, Droid Sans,Helvetica Neue,sans-serif;
+        margin: 0;
+      }
+    </style>
+    <script>
+      window.onload = function () {
+        window.parent.postMessage({
+          msgkey: document.body.getAttribute('data-msgkey'), 
+          height: document.documentElement.offsetHeight > 50 ? document.documentElement.offsetHeight : null,
+        }, '*')
+      }
+    </script>
+  </head>
+  <body data-msgkey="${props.msg.key}">
+    ${props.msg.body}
+  </body>
+</html>
+`
+  setTimeout(() => send_iframe_msg(props.msg.key, props.msg.body), 50)
+  return (
+    <div className="box-msg">
+      <div className="head row">
+        <div className="col">
+          {first_action.actor}
+          <span className="text-muted ml-2">{format_ts(first_action.timestamp)}</span>
+        </div>
+        <div className="col text-right">
+          <button type="button" className="btn btn-secondary btn-sm">edit</button>
+        </div>
+      </div>
+      <div className="body">
+        <iframe id={props.msg.key} title={props.msg.key} src={src} style={styles}/>
+      </div>
+    </div>
+  )
+}
+
 class ConversationDetails extends Component {
   constructor (props) {
     super(props)
@@ -17,6 +90,8 @@ class ConversationDetails extends Component {
       new_message: '',
       publish_allowed: true,
       action_count: 0,
+      msg_actions: {},
+      msg_heights: {},
     }
     this.send_new_message = this.send_new_message.bind(this)
     this.add_message = this.add_message.bind(this)
@@ -38,6 +113,13 @@ class ConversationDetails extends Component {
       // conversation might be out of date, updating it
       worker.postMessage({method: 'update_single_conv', args: {conv_key: this.props.conv_key}})
     }
+    window.addEventListener('message', e => {
+      if (e.data.height) {
+        const msg_heights = Object.assign({}, this.state.msg_heights)
+        msg_heights[e.data.msgkey] = e.data.height
+        this.setState({msg_heights})
+      }
+    }, false)
 
     this.listener_id = worker.add_listener('conv', async args => {
       if (args.conv_key === this.props.conv_key) {
@@ -69,10 +151,22 @@ class ConversationDetails extends Component {
       const messages = await db.messages.where({conv_key: conv.key}).toArray()
       messages.sort((a, b) => a.position - b.position)
       const participants = (await db.participants.where({conv_key: conv.key}).toArray()).map(p => p.address)
-      const action_count = await db.actions.where({conv_key: conv.key}).count()
+      const actions = await db.actions.where({conv_key: conv.key}).reverse().sortBy('timestamp')
+
+      // current msg_actions and action_count are the only uses of actions here
+      const msg_actions = {}
+      for (let action of actions) {
+        if (action.component === 'message') {
+          if(msg_actions[action.message]) {
+            msg_actions[action.message].push(action)
+          } else {
+            msg_actions[action.message] = [action]
+          }
+        }
+      }
 
       if (this._ismounted) {
-        this.setState({conv, messages, participants, action_count, conv_found: true})
+        this.setState({conv, messages, participants, msg_actions, action_count: actions.length, conv_found: true})
         this.props.updateGlobal({nav_edit_arg: conv.key})
         this.props.updateGlobal({
           page_title: conv.subject,
@@ -171,10 +265,8 @@ class ConversationDetails extends Component {
       <div className="row">
         <div className="col-9">
           {this.state.messages.map((msg, i) => (
-            <div key={i} className="box">
-              <div className="body">
-                {msg.body}
-              </div>
+            <div key={i}>
+              <Message msg={msg} msg_actions={this.state.msg_actions} msg_heights={this.state.msg_heights}/>
             </div>
           ))}
           {this.state.conv.published ? this.add_message() : this.publish_draft()}
