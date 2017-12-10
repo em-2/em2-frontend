@@ -1,3 +1,4 @@
+import format from 'date-fns/format'
 
 const env = process.env
 export const urls = {
@@ -95,3 +96,7 @@ export async function get_json (url, allowed_responses) {
 
 export const now = () => (new Date()).getTime()
 export const ts2int = ts => (new Date(ts)).getTime()
+
+const DTF = 'HH:mm DD/MM/YYYY'
+
+export const format_ts = ts => format(new Date(ts), DTF)

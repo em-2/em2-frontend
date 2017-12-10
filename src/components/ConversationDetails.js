@@ -1,7 +1,10 @@
 import React, { Component } from 'react'
+import {Link} from 'react-router-dom'
 import {create_user_db} from '../db'
 import worker from '../worker'
+import {format_ts} from '../utils'
 import Participants from './Participants'
+import {Detail, ConversationNotFound} from './Shared'
 
 class ConversationDetails extends Component {
   constructor (props) {
@@ -13,6 +16,7 @@ class ConversationDetails extends Component {
       participants: [],
       new_message: '',
       publish_allowed: true,
+      action_count: 0,
     }
     this.send_new_message = this.send_new_message.bind(this)
     this.add_message = this.add_message.bind(this)
@@ -50,23 +54,25 @@ class ConversationDetails extends Component {
 
   async get_conv () {
     this.db = this.db || await create_user_db()
-    return await this.db.transaction('r', this.db.convs, this.db.messages, this.db.participants, async () => {
-      let conv = await this.db.convs.get(this.props.conv_key)
+    const db = this.db
+    return await this.db.transaction('r', db.convs, db.messages, db.participants, db.actions, async () => {
+      let conv = await db.convs.get(this.props.conv_key)
       if (!conv) {
-        conv = await this.db.convs.get({old_key: this.props.conv_key})
+        conv = await db.convs.get({old_key: this.props.conv_key})
         if (conv) {
           this.props.history.push('/' + conv.key)
         } else {
           this._ismounted && this.setState({conv_found: false})
-          return null
         }
+        return null
       }
-      const messages = await this.db.messages.where({conv_key: conv.key}).toArray()
+      const messages = await db.messages.where({conv_key: conv.key}).toArray()
       messages.sort((a, b) => a.position - b.position)
-      const participants = (await this.db.participants.where({conv_key: conv.key}).toArray()).map(p => p.address)
+      const participants = (await db.participants.where({conv_key: conv.key}).toArray()).map(p => p.address)
+      const action_count = await db.actions.where({conv_key: conv.key}).count()
 
       if (this._ismounted) {
-        this.setState({conv, messages, participants, conv_found: true})
+        this.setState({conv, messages, participants, action_count, conv_found: true})
         this.props.updateGlobal({nav_edit_arg: conv.key})
         this.props.updateGlobal({
           page_title: conv.subject,
@@ -159,12 +165,7 @@ class ConversationDetails extends Component {
     if (this.state.conv_found === null) {
       return <div/>
     } else if (this.state.conv_found === false) {
-      return (
-        <div className="box">
-          <h3>conversation not found</h3>
-          <p>No record found of the conversation {this.props.conv_key.substr(0, 8)}.</p>
-        </div>
-      )
+      return <ConversationNotFound updateGlobal={this.props.updateGlobal} conv_key={this.props.conv_key}/>
     }
     return (
       <div className="row">
@@ -179,6 +180,15 @@ class ConversationDetails extends Component {
           {this.state.conv.published ? this.add_message() : this.publish_draft()}
         </div>
         <div className="col-3">
+          <div className="box">
+            <Detail name="Created">{format_ts(this.state.conv.created_ts)}</Detail>
+            <Detail name="Updated">{format_ts(this.state.conv.updated_ts)}</Detail>
+            <Detail name="History">
+              <Link to={`/${this.props.conv_key}/details`}>
+                {this.state.action_count} actions
+              </Link>
+            </Detail>
+          </div>
           <div className="box">
             <Participants selected={this.state.participants} onChange={this.prts_change}/>
             <small id="subject-help" className="form-text text-muted">

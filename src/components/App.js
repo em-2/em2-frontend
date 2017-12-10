@@ -3,6 +3,7 @@ import {Link, Redirect, Route, Switch, withRouter} from 'react-router-dom'
 import 'react-bootstrap-typeahead/css/Typeahead.css'
 import ConversationCreate from './ConversationCreate'
 import ConversationDetails from './ConversationDetails'
+import ConversationHistory from './ConversationHistory'
 import ConversationList from './ConversationList'
 import StatusBar from './StatusBar'
 import Settings from './Settings'
@@ -112,6 +113,12 @@ class _App extends Component {
 
             <Route exact path="/settings" render={props => (
               <Settings updateGlobal={this.updateGlobal}/>
+            )}/>
+
+            <Route exact path="/:conv/details" render={props => (
+              <ConversationHistory conv_key={props.match.params.conv}
+                                   history={props.history}
+                                   updateGlobal={this.updateGlobal}/>
             )}/>
 
             <Route exact path="/:conv" render={props => (

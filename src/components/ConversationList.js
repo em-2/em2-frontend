@@ -1,11 +1,9 @@
 import React, { Component } from 'react'
 import {Link} from 'react-router-dom'
-import format from 'date-fns/format'
 import {create_user_db} from '../db'
 import worker from '../worker'
-import {now} from '../utils'
+import {now, format_ts} from '../utils'
 
-const DTF = 'HH:mm DD/MM/YYYY'
 window.last_update_convs = null
 
 
@@ -29,7 +27,7 @@ const ListItem = props => {
         <i className="fa fa-users" aria-hidden="true"/>{snippet.prts}
       </span>
       <span>
-        {format(new Date(conv.updated_ts), DTF)}
+        {format_ts(conv.updated_ts)}
       </span>
     </span>
   </Link>
@@ -76,7 +74,7 @@ class ConversationList extends Component {
   render () {
     // TODO need a loading icon if convs. haven't yet been loaded
     return (
-      <div className="box-conv-list">
+      <div className="box-list conv-list">
         {/* labels */}
         {this.state.convs.map((conv, i) => (
           <div key={i}>
